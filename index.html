@@ -21,7 +21,7 @@
   --text2: #8899cc;
   --card-bg: #0f1840;
 }
-body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #080d24; min-height: 100vh; color: #fff; }
+html, body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #080d24; min-height: 100vh; color: #fff; }
 #app { max-width: 460px; margin: 0 auto; padding-bottom: 48px; }
 
 
@@ -38,7 +38,7 @@ input {
   border: 1.5px solid #1e2d5e;
   border-radius: 11px;
   font-size: 14px; font-family: inherit;
-  background: #fff; color: #fff;
+  background: #111d45; color: #fff;
   outline: none; transition: border-color 0.15s;
 }
 input:focus { border-color: #fff; }
@@ -54,7 +54,7 @@ button {
   border: 1.5px solid #1e2d5e;
   border-radius: 12px;
   font-size: 14px; font-weight: 500; font-family: inherit;
-  background: #fff; color: #fff; cursor: pointer;
+  background: #111d45; color: #fff; cursor: pointer;
   transition: background 0.12s, transform 0.1s;
   user-select: none;
 }
@@ -70,10 +70,10 @@ button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
 .r-btn {
   width: 36px; height: 36px;
   border-radius: 9px; border: 1.5px solid #1e2d5e;
-  background: #fff; font-size: 13px; font-weight: 600;
+  background: #0f1840; font-size: 13px; font-weight: 600;
   cursor: pointer; transition: all 0.12s;
 }
-.r-btn:hover { background: #f5f5f3; }
+.r-btn:hover { background: #1a2a5e; }
 .r-btn.on { background: #2979ff; color: #fff; border-color: #fff; }
 
 /* ── Layout helpers ── */
@@ -90,7 +90,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
 .err { font-size: 12px; color: #dc2626; margin-top: 6px; min-height: 16px; }
 .ok  { font-size: 12px; color: #16a34a; text-align: center; margin-bottom: 8px; }
 .warn-box {
-  background: #fef2f2; border: 1.5px solid #fecaca;
+  background: rgba(248,113,113,0.08); border: 1.5px solid #fecaca;
   border-radius: 12px; padding: 12px 14px;
   font-size: 13px; color: #dc2626; margin-bottom: 14px;
 }
@@ -104,6 +104,10 @@ button:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
 .tab-grid { display: grid; gap: 6px; margin-bottom: 16px; }
 .tab { font-size: 12px; padding: 9px; border-radius: 9px; }
 .tab.on { background: #2979ff; color: #fff; border-color: #fff; }
+
+/* Global dark theme override */
+* { box-sizing: border-box; }
+button, input, select, textarea { color: #fff; }
 </style>
 </head>
 <body>
@@ -182,7 +186,20 @@ function emptyPred() {
 // ─── Utilidades ───────────────────────────────────────────────
 const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const slugify = n => n.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'');
-const initSetup = () => ({ groups: Object.fromEntries(GROUPS.map(g => [g, ['','','','']])) });
+const initSetup = () => ({ groups: {
+  A: ['México', 'Corea del Sur', 'Sudáfrica', 'Rep. Checa'],
+  B: ['Canadá', 'Suiza', 'Qatar', 'Bosnia y Herz.'],
+  C: ['Brasil', 'Marruecos', 'Escocia', 'Haití'],
+  D: ['Estados Unidos', 'Paraguay', 'Australia', 'Turquía'],
+  E: ['Alemania', 'Ecuador', 'Costa de Marfil', 'Curazao'],
+  F: ['Países Bajos', 'Japón', 'Túnez', 'Suecia'],
+  G: ['Bélgica', 'Irán', 'Egipto', 'Nueva Zelanda'],
+  H: ['España', 'Uruguay', 'Arabia Saudita', 'Cabo Verde'],
+  I: ['Francia', 'Senegal', 'Noruega', 'Irak'],
+  J: ['Argentina', 'Austria', 'Argelia', 'Jordania'],
+  K: ['Portugal', 'Colombia', 'Uzbekistán', 'RD Congo'],
+  L: ['Inglaterra', 'Croacia', 'Panamá', 'Ghana']
+} });
 
 // ─── Cálculo de puntaje ───────────────────────────────────────
 function calcScore(pred, res) {
@@ -249,8 +266,8 @@ function viewHome() {
 
   <div style="display:flex;flex-direction:column;gap:9px">
     <button class="btn-dark btn-full" style="padding:15px;font-size:15px" onclick="go('prode')">⚽ Cargar mi prode</button>
-    <button class="btn-full" style="padding:15px;font-size:15px" onclick="go('leaderboard')">🏆 Ver tabla de posiciones</button>
-    <button class="btn-full" style="padding:12px;font-size:13px;color:#999" onclick="go('admin')">🔐 Admin</button>
+    <button class="btn-full" style="padding:15px;font-size:15px;color:#fff;background:#0f1840;border-color:#8899cc" onclick="go('leaderboard')">🏆 Ver tabla de posiciones</button>
+    <button class="btn-full" style="padding:12px;font-size:13px;color:#8899cc;background:#0f1840;border-color:#8899cc" onclick="go('admin')">🔐 Admin</button>
   </div>
 </div>`;
 }
@@ -458,7 +475,7 @@ function stepDone() {
 <div class="page" style="text-align:center;padding-top:60px">
   <div style="font-size:60px;margin-bottom:18px">🎉</div>
   <h2 style="margin-bottom:8px">¡Prode guardado!</h2>
-  <p style="margin-bottom:6px;font-size:15px;font-weight:600;color:#111">${esc(S.user?.name)}</p>
+  <p style="margin-bottom:6px;font-size:15px;font-weight:600;color:#fff">${esc(S.user?.name)}</p>
   <p style="margin-bottom:30px;font-size:12px">Tus predicciones fueron registradas y no se pueden modificar.</p>
   <div style="display:flex;flex-direction:column;gap:8px">
     <button class="btn-full" style="padding:13px" onclick="go('leaderboard')">Ver tabla de posiciones →</button>
@@ -550,7 +567,7 @@ function viewAdmin() {
     <h2 style="flex:1">Admin</h2>
     <span style="font-size:11px;color:#aaa">${S.parts.length} participantes</span>
   </div>
-  <div class="tab-grid" style="grid-template-columns:repeat(3,1fr)">
+  <div class="tab-grid" style="grid-template-columns:repeat(2,1fr)">
     ${tabs.map(([t,l]) => `<button class="btn tab${S.adminTab===t?' on':''}" onclick="S.adminTab='${t}';render()">${l}</button>`).join('')}
   </div>
   ${S.adminTab === 'setup'   ? tabSetup()   : ''}
