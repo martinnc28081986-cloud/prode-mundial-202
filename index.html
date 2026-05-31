@@ -462,7 +462,7 @@ function viewProde(){
 function stepCode(){
   return `
 <div class="page">
-  <button class="back" onclick="go('home')">← Inicio</button>
+  <button class="back" onclick="go('home')">&#8592; Inicio</button>
   <div style="text-align:center;margin-bottom:24px">
     <img src="${LOGO}" style="width:60px;height:60px;border-radius:50%;border:2px solid #2979ff;margin-bottom:12px">
     <h2>Tu prode</h2>
@@ -474,7 +474,7 @@ function stepCode(){
     onkeydown="if(event.key==='Enter')doCode()"
     style="text-align:center;font-size:22px;letter-spacing:6px;font-weight:700">
   <div class="err">${S.codeErr}</div>
-  <button class="btn-dark btn-full" style="margin-top:12px;padding:13px" onclick="doCode()">Continuar →</button>
+  <button class="btn-dark btn-full" style="margin-top:12px;padding:13px" onclick="doCode()">Continuar &#8594;</button>
 </div>`;
 }
 
@@ -531,7 +531,7 @@ function stepGrupos(){
   return `
 <div class="page">
   <div class="row" style="margin-bottom:10px">
-    <button class="back" style="padding:0;margin:0" onclick="${gi>0?'S.gi--;render()':\"S.step='code';render()\"}">← </button>
+    <button class="back" style="padding:0;margin:0" onclick="if(${gi}>0){S.gi--;render();}else{S.step='code';render();}">&#8592; </button>
     <div style="flex:1">
       <div style="font-size:15px;font-weight:700">Grupo ${g} — Posiciones</div>
       <div style="font-size:11px;color:#8899cc">Grupo ${gi+1} de 12</div>
@@ -544,7 +544,7 @@ function stepGrupos(){
   <div style="margin:14px 0 6px;font-size:11px;color:#8899cc;text-transform:uppercase;letter-spacing:.5px">Equipos del grupo</div>
   <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">${teamChips}</div>
   <button class="btn-dark btn-full" style="padding:13px" ${!allFilled?'disabled':''} onclick="${isLast?\"S.step='terceros';render()\":'S.gi++;render()'}">
-    ${isLast?'Elegir terceros que pasan →':'Grupo '+GROUPS[gi+1]+' →'}
+    ${isLast?'Elegir terceros que pasan &#8594;':'Grupo '+GROUPS[gi+1]+' &#8594;'}
   </button>
 </div>`;
 }
@@ -575,7 +575,7 @@ function stepTerceros(){
   return `
 <div class="page">
   <div class="row" style="margin-bottom:10px">
-    <button class="back" style="padding:0;margin:0" onclick="S.gi=11;S.step='grupos';render()">← </button>
+    <button class="back" style="padding:0;margin:0" onclick="S.gi=11;S.step='grupos';render()">&#8592; </button>
     <div style="flex:1">
       <div style="font-size:15px;font-weight:700">Terceros que clasifican</div>
       <div style="font-size:11px;color:#8899cc">Elegí 8 de los 12 terceros</div>
@@ -596,7 +596,7 @@ function stepTerceros(){
     }).join('')}
   </div>
   <button class="btn-dark btn-full" style="padding:13px" ${selSet.size!==8?'disabled':''} onclick="S.step='ko';render()">
-    Fase eliminatoria →
+    Fase eliminatoria &#8594;
   </button>
 </div>`;
 }
@@ -682,14 +682,14 @@ function stepKO(){
   return `
 <div class="page">
   <div class="row" style="margin-bottom:10px">
-    <button class="back" style="padding:0;margin:0" onclick="S.step='terceros';render()">← </button>
+    <button class="back" style="padding:0;margin:0" onclick="S.step='terceros';render()">&#8592; </button>
     <div style="flex:1">
       <div style="font-size:15px;font-weight:700">Fase Eliminatoria</div>
       <div style="font-size:11px;color:#8899cc">Elegí el ganador de cada partido</div>
     </div>
   </div>
   ${rows}
-  <button class="btn-dark btn-full" style="margin-top:14px;padding:13px" onclick="S.step='arg';render()">Argentina y Messi →</button>
+  <button class="btn-dark btn-full" style="margin-top:14px;padding:13px" onclick="S.step='arg';render()">Argentina y Messi &#8594;</button>
 </div>`;
 }
 
@@ -716,7 +716,7 @@ function stepArgMessi(){
   const pred=S.pred;
   const teams=getGroupTeams(ARG_GROUP);
   const argIdx=teams.indexOf('Argentina');
-  if(argIdx===-1) return `<div class="page"><p>Argentina no está en el Grupo J.</p><button onclick="S.step='ko';render()">← Volver</button></div>`;
+  if(argIdx===-1) return `<div class="page"><p>Argentina no está en el Grupo J.</p><button onclick="S.step='ko';render()">&#8592; Volver</button></div>`;
 
   // Partidos de grupos de Argentina
   const groupMatches=PAIRS.map(([hi,ai],mi)=>{
@@ -775,9 +775,9 @@ function stepArgMessi(){
   if(!allMatches.length){
     return `
 <div class="page">
-  <button class="back" onclick="S.step='ko';render()">← Volver</button>
+  <button class="back" onclick="S.step='ko';render()">&#8592; Volver</button>
   <p style="margin:20px 0">No hay partidos de Argentina en tus predicciones aún.</p>
-  <button class="btn-dark btn-full" style="padding:13px" onclick="S.step='confirm';render()">Confirmar prode →</button>
+  <button class="btn-dark btn-full" style="padding:13px" onclick="S.step='confirm';render()">Confirmar prode &#8594;</button>
 </div>`;
   }
 
@@ -805,7 +805,7 @@ function stepArgMessi(){
   return `
 <div class="page">
   <div class="row" style="margin-bottom:10px">
-    <button class="back" style="padding:0;margin:0" onclick="S.step='ko';render()">← </button>
+    <button class="back" style="padding:0;margin:0" onclick="S.step='ko';render()">&#8592; </button>
     <div style="flex:1">
       <div style="font-size:15px;font-weight:700">🇦🇷 Argentina & Messi</div>
       <div style="font-size:11px;color:#8899cc">Predicción de goles por partido</div>
@@ -816,7 +816,7 @@ function stepArgMessi(){
   </div>
   ${rows}
   <button class="btn-dark btn-full" style="margin-top:6px;padding:13px" onclick="S.step='confirm';render()">
-    Confirmar prode →
+    Confirmar prode &#8594;
   </button>
 </div>`;
 }
@@ -860,7 +860,7 @@ function stepConfirm(){
     ${S.saving?'Guardando...':'✓ Confirmar y bloquear prode'}
   </button>
   <button class="btn-full" style="margin-top:8px;padding:11px;color:#8899cc" onclick="S.step='grupos';S.gi=0;render()">
-    ← Revisar predicciones
+    &#8592; Revisar predicciones
   </button>
 </div>`;
 }
@@ -885,7 +885,7 @@ function stepDone(){
   <p style="margin-bottom:6px;font-size:15px;font-weight:600;color:#fff">${esc(S.user?.name)}</p>
   <p style="margin-bottom:30px;font-size:12px">Tus predicciones fueron registradas y no se pueden modificar.</p>
   <div style="display:flex;flex-direction:column;gap:8px">
-    <button class="btn-full" style="padding:13px" onclick="go('leaderboard')">Ver tabla de posiciones →</button>
+    <button class="btn-full" style="padding:13px" onclick="go('leaderboard')">Ver tabla de posiciones &#8594;</button>
     <button class="btn-full" style="padding:13px;color:#8899cc" onclick="S.step='code';S.codeVal='';S.pred=emptyPred();S.user=null;go('home')">Volver al inicio</button>
   </div>
 </div>`;
@@ -897,7 +897,7 @@ function viewLeaderboard(){
 <div>
   <div class="header-stripe" style="padding:18px 20px 14px">
     <div class="row" style="justify-content:space-between">
-      <button class="back" style="padding:0;margin:0" onclick="go('home')">← </button>
+      <button class="back" style="padding:0;margin:0" onclick="go('home')">&#8592; </button>
       <div style="text-align:center;flex:1"><h2 style="font-size:16px">🏆 Tabla de posiciones</h2></div>
       <button class="btn-sm" onclick="loadRanking()" style="font-size:11px">↻</button>
     </div>
@@ -948,7 +948,7 @@ function viewAdmin(){
   return `
 <div class="page">
   <div class="row" style="margin-bottom:14px">
-    <button class="back" style="padding:0;margin:0" onclick="go('home')">← </button>
+    <button class="back" style="padding:0;margin:0" onclick="go('home')">&#8592; </button>
     <h2 style="flex:1">Admin</h2>
     <button class="btn-sm" onclick="S.adminAuth=false;render()">Salir</button>
   </div>
@@ -962,7 +962,7 @@ function viewAdmin(){
 function viewAdminLogin(){
   return `
 <div class="page">
-  <button class="back" onclick="go('home')">← Inicio</button>
+  <button class="back" onclick="go('home')">&#8592; Inicio</button>
   <div style="text-align:center;margin-bottom:24px">
     <img src="${LOGO}" style="width:60px;height:60px;border-radius:50%;border:2px solid #2979ff;margin-bottom:12px">
     <h2>Panel de Admin</h2>
