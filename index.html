@@ -155,11 +155,40 @@ function groupStandings(g,gm){
 
 // Obtener equipo por clave (ej: '1A', '2B')
 function getTeamByKey(key,gm){
+  // Caso simple: '1A', '2B', '3C' (posición + grupo)
   const m=key.match(/^([123])([A-L])$/);
-  if(!m) return key;
-  const pos=parseInt(m[1])-1, g=m[2];
-  const st=groupStandings(g,gm);
-  return st[pos]?.name||key;
+  if(m){
+    const pos=parseInt(m[1])-1, g=m[2];
+    const st=groupStandings(g,gm);
+    return st[pos]?.name||key;
+  }
+  // Casos de 3ros clasificados por grupo de grupos
+  // Encontrar el mejor 3ro de un conjunto de grupos (toma al de más puntos/dif)
+  const thirdMap={
+    '3ABCD':  ['A','B','C','D'],
+    '3EFGH':  ['E','F','G','H'],
+    '3IJKL':  ['I','J','K','L'],
+    '3ABCD2': ['A','B','C','D'],   // segundo mejor 3ro del mismo bloque (placeholder)
+    'Mejor3-1':'Mejor 3° (1)',
+    'Mejor3-2':'Mejor 3° (2)',
+    'Mejor3-3':'Mejor 3° (3)',
+    'Mejor3-4':'Mejor 3° (4)',
+  };
+  if(key in thirdMap){
+    const groups=thirdMap[key];
+    if(typeof groups==='string') return groups; // placeholder string
+    // Obtener todos los 3ros de esos grupos y ordenar por pts/dif/gf
+    const thirds=groups.map(g=>{
+      const st=groupStandings(g,gm);
+      return st[2]?{...st[2],g}:null;
+    }).filter(Boolean);
+    if(!thirds.length) return key;
+    thirds.sort((a,b)=>b.pts-a.pts||b.dif-a.dif||b.gf-a.gf);
+    // 3ABCD2 = segundo mejor 3ro del bloque
+    const idx = key==='3ABCD2' ? 1 : 0;
+    return thirds[idx]?.name || key;
+  }
+  return key;
 }
 
 // Obtener nombre de equipo en partido KO desde resultados
@@ -184,39 +213,52 @@ function buildKOBracket(gm,ko){
     };
   });
   // Octavos: ganadores de pares de 16avos
+  const r16Labels={
+    'r16_1':'1°A vs 2°B','r16_2':'1°C vs 2°D','r16_3':'1°E vs 2°F','r16_4':'1°G vs 2°H',
+    'r16_5':'1°I vs 2°J','r16_6':'1°K vs 2°L','r16_7':'2°A vs 1°B','r16_8':'2°C vs 1°D',
+    'r16_9':'2°E vs 1°F','r16_10':'2°G vs 1°H','r16_11':'2°I vs 1°J','r16_12':'2°K vs 1°L',
+    'r16_13':'3°ABCD vs 3°EFGH','r16_14':'3°IJKL vs 3°ABCD','r16_15':'Mejor 3° vs Mejor 3°',
+    'r16_16':'Mejor 3° vs Mejor 3°',
+  };
   for(let i=1;i<=8;i++){
     const id='r8_'+i;
     const h16='r16_'+(i*2-1), a16='r16_'+(i*2);
     const r=(ko||{})[id]||{};
     const hWin=getWinner(ko,h16);
     const aWin=getWinner(ko,a16);
-    bracket[id]={id,h:r.h_name||hWin||'Gan.16-'+(i*2-1),a:r.a_name||aWin||'Gan.16-'+(i*2),hg:r.hg,ag:r.ag,w:r.w};
+    const hLabel=hWin || (bracket[h16]?.h&&!bracket[h16].h.startsWith('?')?`Gan. (${r16Labels[h16]||h16})`:'Gan. 16-'+(i*2-1));
+    const aLabel=aWin || (bracket[a16]?.h&&!bracket[a16].h.startsWith('?')?`Gan. (${r16Labels[a16]||a16})`:'Gan. 16-'+(i*2));
+    bracket[id]={id,h:r.h_name||hLabel,a:r.a_name||aLabel,hg:r.hg,ag:r.ag,w:r.w};
   }
   // Cuartos
   for(let i=1;i<=4;i++){
     const id='r4_'+i;
     const h8='r8_'+(i*2-1), a8='r8_'+(i*2);
     const r=(ko||{})[id]||{};
-    bracket[id]={id,h:r.h_name||getWinner(ko,h8)||'Gan.Oct-'+(i*2-1),a:r.a_name||getWinner(ko,a8)||'Gan.Oct-'+(i*2),hg:r.hg,ag:r.ag,w:r.w};
+    const hWin8=getWinner(ko,h8)||bracket['r8_'+(i*2-1)]?.h||'Gan. Oct '+(i*2-1);
+    const aWin8=getWinner(ko,a8)||bracket['r8_'+(i*2)]?.a||'Gan. Oct '+(i*2);
+    bracket[id]={id,h:r.h_name||hWin8,a:r.a_name||aWin8,hg:r.hg,ag:r.ag,w:r.w};
   }
   // Semis
   for(let i=1;i<=2;i++){
     const id='r2_'+i;
     const h4='r4_'+(i*2-1), a4='r4_'+(i*2);
     const r=(ko||{})[id]||{};
-    bracket[id]={id,h:r.h_name||getWinner(ko,h4)||'Gan.Cuar-'+(i*2-1),a:r.a_name||getWinner(ko,a4)||'Gan.Cuar-'+(i*2),hg:r.hg,ag:r.ag,w:r.w};
+    const hWin4=getWinner(ko,h4)||bracket['r4_'+(i*2-1)]?.h||'Gan. Cuar '+(i*2-1);
+    const aWin4=getWinner(ko,a4)||bracket['r4_'+(i*2)]?.a||'Gan. Cuar '+(i*2);
+    bracket[id]={id,h:r.h_name||hWin4,a:r.a_name||aWin4,hg:r.hg,ag:r.ag,w:r.w};
   }
   // 3° puesto
   {
     const id='r3p_1';
     const r=(ko||{})[id]||{};
-    bracket[id]={id,h:r.h_name||getLoser(ko,'r2_1')||'Perd.Semi 1',a:r.a_name||getLoser(ko,'r2_2')||'Perd.Semi 2',hg:r.hg,ag:r.ag,w:r.w};
+    bracket[id]={id,h:r.h_name||getLoser(ko,'r2_1')||bracket['r2_1']?.h||'Perd. Semi 1',a:r.a_name||getLoser(ko,'r2_2')||bracket['r2_2']?.a||'Perd. Semi 2',hg:r.hg,ag:r.ag,w:r.w};
   }
   // Final
   {
     const id='r1_1';
     const r=(ko||{})[id]||{};
-    bracket[id]={id,h:r.h_name||getWinner(ko,'r2_1')||'Gan.Semi 1',a:r.a_name||getWinner(ko,'r2_2')||'Gan.Semi 2',hg:r.hg,ag:r.ag,w:r.w};
+    bracket[id]={id,h:r.h_name||getWinner(ko,'r2_1')||bracket['r2_1']?.h||'Gan. Semi 1',a:r.a_name||getWinner(ko,'r2_2')||bracket['r2_2']?.a||'Gan. Semi 2',hg:r.hg,ag:r.ag,w:r.w};
   }
   return bracket;
 }
