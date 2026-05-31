@@ -543,12 +543,16 @@ function stepGrupos(){
   ${slotRows}
   <div style="margin:14px 0 6px;font-size:11px;color:#8899cc;text-transform:uppercase;letter-spacing:.5px">Equipos del grupo</div>
   <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px">${teamChips}</div>
-  <button class="btn-dark btn-full" style="padding:13px" ${!allFilled?'disabled':''} onclick="${isLast?\"S.step='terceros';render()\":'S.gi++;render()'}">
-    ${isLast?'Elegir terceros que pasan &#8594;':'Grupo '+GROUPS[gi+1]+' &#8594;'}
+  <button class="btn-dark btn-full" style="padding:13px" ${allFilled?'':'disabled'} onclick="grpNext(${isLast?1:0})">
+    ${isLast?'Elegir terceros que pasan':'Grupo '+(GROUPS[gi+1]||'')}
   </button>
 </div>`;
 }
 
+function grpNext(isLast){
+  if(isLast){S.step='terceros';render();}
+  else{S.gi++;render();}
+}
 function assignTeam(g,team){
   const pos=S.pred.grupos[g].pos;
   // Si ya está asignado, no hacer nada
