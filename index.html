@@ -993,7 +993,7 @@ function attachEvents(){
 
   // Config: set status
   document.querySelectorAll('[data-setstatus]').forEach(b=>b.onclick=()=>setEtapaStatus(b.dataset.setstatus, b.dataset.val));
-  document.querySelectorAll('[data-setronda]').forEach(b=>b.onclick=()=>setRondaStatus(b.dataset.ronda, b.dataset.val));
+  document.querySelectorAll('[data-setronda]').forEach(b=>b.onclick=()=>setRondaStatus(b.dataset.setronda, b.dataset.ronda, b.dataset.val));
 
   // Guardar config
   const btnSaveCfg=document.getElementById('btnSaveConfig');
