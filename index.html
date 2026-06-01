@@ -780,8 +780,8 @@ function tabConfig(){
             return `<div style="flex:1;text-align:center">
               <div style="font-size:10px;color:#8899cc;margin-bottom:4px">F${i+1}</div>
               ${rs==='pending'?`<button class="btn-sm btn-success" data-setronda="grupos" data-ronda="${r}" data-val="open" style="width:100%;font-size:10px;padding:5px">Abrir</button>`:
-                rs==='open'?`<button class="btn-sm btn-danger" data-setronda="grupos" data-ronda="${r}" data-val="done" style="width:100%;font-size:10px;padding:5px">Cerrar</button>`:
-                `<span style="font-size:10px;color:#22c55e">OK Cargada</span>`}
+                rs==='open'?`<div style="display:flex;gap:4px"><button class="btn-sm btn-danger" data-setronda="grupos" data-ronda="${r}" data-val="done" style="flex:1;font-size:10px;padding:5px">Cerrar</button><button class="btn-sm" data-setronda="grupos" data-ronda="${r}" data-val="pending" style="font-size:10px;padding:5px">Reset</button></div>`:
+                `<div style="display:flex;align-items:center;gap:6px"><span style="font-size:10px;color:#22c55e">OK Cargada</span><button class="btn-sm" data-setronda="grupos" data-ronda="${r}" data-val="pending" style="font-size:10px;padding:4px 6px">Reset</button></div>`}
             </div>`;
           }).join('')}
         </div>
