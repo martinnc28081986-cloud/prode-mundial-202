@@ -335,9 +335,13 @@ function viewProde(){
   }
 
   if(etapa==='grupos'){
+    if(S.ui.step==='golesGrupos') return stepGolesGrupos();
     if(S.ui.step==='confirmGrupos') return stepConfirmGrupos();
     return stepGrupos();
   }
+  // KO steps
+  if(S.ui.step==='golesKO_'+etapa) return stepGolesKO(etapa, etapaInfo);
+  if(S.ui.step==='confirmKO_'+etapa) return stepConfirmKO(etapa, etapaInfo);
   return stepKO(etapa, etapaInfo);
 }
 
@@ -370,6 +374,163 @@ function stepEtapaEnviada(etapaId, etapaInfo){
     ${openOtras.length?'<div class="section-title">Otras etapas abiertas</div>'+openOtras.map(e=>'<button class="btn-full" style="margin-bottom:8px;padding:12px" onclick="S.ui.etapa=\''+e.id+'\';render()">'+e.label+'</button>').join(''):''}
     <button class="btn-full" style="margin-top:10px;padding:12px;color:#8899cc" onclick="go('ranking')">Ver tabla de posiciones</button>
   </div>
+</div>`;
+}
+
+// --- STEP GOLES GRUPOS ---------------------------------------
+function stepGolesGrupos(){
+  const cfg=getConfig();
+  const pred=S.pred;
+  if(!pred.goles) pred.goles={};
+
+  const ARG_G=[
+    {ronda:'ronda1', rival:'Argelia',  kArg:'arg_g1', kMes:'mes_g1', label:'Fecha 1'},
+    {ronda:'ronda2', rival:'Austria',  kArg:'arg_g2', kMes:'mes_g2', label:'Fecha 2'},
+    {ronda:'ronda3', rival:'Jordania', kArg:'arg_g3', kMes:'mes_g3', label:'Fecha 3'},
+  ];
+
+  const fechasHabilitadas=ARG_G.filter(m=>{
+    const st=cfg.etapas?.grupos?.[m.ronda]||'pending';
+    return st!=='pending';
+  });
+
+  const rows=ARG_G.map(m=>{
+    const st=cfg.etapas?.grupos?.[m.ronda]||'pending';
+    const disabled=st==='pending';
+    return `
+    <div class="panel" style="margin-bottom:10px;${disabled?'opacity:.45':''}">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <div style="font-size:13px;font-weight:600;color:#2979ff">${m.label} - vs ${m.rival}</div>
+        ${disabled?'<span style="font-size:10px;color:#8899cc;background:#1e2d5e;padding:3px 8px;border-radius:6px">No disponible aun</span>':''}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div>
+          <div class="lbl">Goles Argentina</div>
+          <input type="number" min="0" max="20" placeholder="--" ${disabled?'disabled':''}
+            data-gol="${m.kArg}" value="${pred.goles?.[m.kArg]??''}"
+            style="text-align:center;font-size:24px;font-weight:700;padding:10px">
+        </div>
+        <div>
+          <div class="lbl">Goles Messi</div>
+          <input type="number" min="0" max="10" placeholder="--" ${disabled?'disabled':''}
+            data-gol="${m.kMes}" value="${pred.goles?.[m.kMes]??''}"
+            style="text-align:center;font-size:24px;font-weight:700;padding:10px">
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  return `
+<div class="page">
+  <div class="row" style="margin-bottom:10px">
+    <button class="back" style="padding:0;margin:0" onclick="S.ui.step=null;S.ui.gi=11;render()"><-</button>
+    <div style="flex:1">
+      <div style="font-size:15px;font-weight:700">Goles Argentina & Messi</div>
+      <div style="font-size:11px;color:#8899cc">Fase de Grupos</div>
+    </div>
+    <span style="font-size:11px;color:#8899cc">${esc(S.user?.name)}</span>
+  </div>
+  <div style="background:rgba(41,121,255,.08);border:1px solid rgba(41,121,255,.25);border-radius:11px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:#8899cc">
+    Exacto: +3 pts &nbsp;|&nbsp; Diferencia de 1: +1 pt
+  </div>
+  ${rows}
+  <button class="btn-primary btn-full" style="padding:13px;margin-top:4px" onclick="S.ui.step='confirmGrupos';render()">
+    Continuar ->
+  </button>
+</div>`;
+}
+
+// --- STEP GOLES KO -------------------------------------------
+function stepGolesKO(etapaId, etapaInfo){
+  const cfg=getConfig();
+  const pred=S.pred;
+  if(!pred.goles) pred.goles={};
+  const cruces=cfg.etapas?.[etapaId]?.cruces||[];
+
+  // Buscar si Argentina juega en esta etapa
+  const argCruces=cruces.map((c,i)=>({...c,idx:i})).filter(c=>c.h==='Argentina'||c.a==='Argentina');
+
+  if(!argCruces.length){
+    // Argentina no juega en esta etapa, saltar directo a confirmar
+    S.ui.step='confirmKO_'+etapaId;
+    return stepConfirmKO(etapaId, etapaInfo);
+  }
+
+  const rows=argCruces.map(c=>{
+    const mid=etapaId+'_'+(c.idx+1);
+    const rival=c.h==='Argentina'?c.a:c.h;
+    return `
+    <div class="panel" style="margin-bottom:10px">
+      <div style="font-size:13px;font-weight:600;color:#2979ff;margin-bottom:10px">
+        ${etapaInfo.label} - Argentina vs ${esc(rival)}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div>
+          <div class="lbl">Goles Argentina</div>
+          <input type="number" min="0" max="20" placeholder="--"
+            data-gol="${mid}_arg" value="${pred.goles?.[mid+'_arg']??''}"
+            style="text-align:center;font-size:24px;font-weight:700;padding:10px">
+        </div>
+        <div>
+          <div class="lbl">Goles Messi</div>
+          <input type="number" min="0" max="10" placeholder="--"
+            data-gol="${mid}_mes" value="${pred.goles?.[mid+'_mes']??''}"
+            style="text-align:center;font-size:24px;font-weight:700;padding:10px">
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  return `
+<div class="page">
+  <div class="row" style="margin-bottom:10px">
+    <button class="back" style="padding:0;margin:0" onclick="S.ui.step=null;render()"><-</button>
+    <div style="flex:1">
+      <div style="font-size:15px;font-weight:700">Goles Argentina & Messi</div>
+      <div style="font-size:11px;color:#8899cc">${etapaInfo.label}</div>
+    </div>
+  </div>
+  <div style="background:rgba(41,121,255,.08);border:1px solid rgba(41,121,255,.25);border-radius:11px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:#8899cc">
+    Exacto: +3 pts &nbsp;|&nbsp; Diferencia de 1: +1 pt
+  </div>
+  ${rows}
+  <button class="btn-primary btn-full" style="padding:13px;margin-top:4px" onclick="S.ui.step='confirmKO_${etapaId}';render()">
+    Continuar ->
+  </button>
+</div>`;
+}
+
+// --- STEP CONFIRM KO -----------------------------------------
+function stepConfirmKO(etapaId, etapaInfo){
+  const cfg=getConfig();
+  const pred=S.pred;
+  const cruces=cfg.etapas?.[etapaId]?.cruces||[];
+  const ko=pred.ko||{};
+
+  return `
+<div class="page">
+  <div class="row" style="margin-bottom:16px">
+    <button class="back" style="padding:0;margin:0" onclick="S.ui.step=null;render()"><-</button>
+    <h2 style="flex:1">Confirmar ${etapaInfo.label}</h2>
+  </div>
+  <div class="card" style="margin-bottom:14px">
+    ${cruces.map((c,i)=>{
+      const mid=etapaId+'_'+(i+1);
+      const r=ko[mid];
+      const ganador=r?.w==='h'?c.h:r?.w==='a'?c.a:'Sin seleccionar';
+      const ok=!!r?.w;
+      return `<div style="padding:7px 0;border-bottom:1px solid #1e2d5e;font-size:13px;display:flex;align-items:center;gap:8px">
+        <span style="color:${ok?'#22c55e':'#f87171'}">${ok?'OK':'!'}</span>
+        <span style="color:#8899cc;font-size:11px">${esc(c.h)} vs ${esc(c.a)}</span>
+        <span style="margin-left:auto;font-weight:600">${ok?esc(ganador):'?'}</span>
+      </div>`;
+    }).join('')}
+  </div>
+  <div class="panel" style="margin-bottom:14px;background:rgba(248,113,113,.05);border-color:rgba(248,113,113,.2)">
+    <p style="font-size:12px;color:#f87171">Una vez confirmado no podras modificar esta etapa.</p>
+  </div>
+  <button class="btn-primary btn-full" style="padding:13px;margin-bottom:8px" id="btnSubmitKO" data-etapa="${etapaId}">Confirmar y enviar</button>
+  <button class="btn-full" style="padding:11px;color:#8899cc" onclick="S.ui.step=null;render()">Revisar predicciones</button>
 </div>`;
 }
 
@@ -531,8 +692,16 @@ function confirmGrupos(){
     render();
     return;
   }
-  // Mostrar confirmacion
-  S.ui.step='confirmGrupos';
+  // Ir a goles si hay alguna fecha habilitada, sino confirmar directo
+  const cfg=getConfig();
+  const r1=cfg.etapas?.grupos?.ronda1||'pending';
+  const r2=cfg.etapas?.grupos?.ronda2||'pending';
+  const r3=cfg.etapas?.grupos?.ronda3||'pending';
+  if(r1!=='pending'||r2!=='pending'||r3!=='pending'){
+    S.ui.step='golesGrupos';
+  } else {
+    S.ui.step='confirmGrupos';
+  }
   render();
 }
 
@@ -607,8 +776,8 @@ function stepKO(etapaId, etapaInfo){
     ${statusBadge('open')}
   </div>
   ${crucesHTML}
-  <button class="btn-primary btn-full" style="margin-top:12px;padding:13px" ${!allSelected?'disabled':''} id="btnConfirmKO" data-etapa="${etapaId}">
-    Confirmar pronostico
+  <button class="btn-primary btn-full" style="margin-top:12px;padding:13px" ${!allSelected?'disabled':''} onclick="goToGolesKO('${etapaId}')">
+    Continuar ->
   </button>
 </div>`;
 }
@@ -1130,8 +1299,8 @@ function attachEvents(){
   if(btnSG) btnSG.onclick=submitGrupos;
 
   // Confirm KO button
-  const btnConfirmKO=document.getElementById('btnConfirmKO');
-  if(btnConfirmKO) btnConfirmKO.onclick=()=>confirmKO(btnConfirmKO.dataset.etapa);
+  const btnSubmitKO=document.getElementById('btnSubmitKO');
+  if(btnSubmitKO) btnSubmitKO.onclick=()=>submitKO(btnSubmitKO.dataset.etapa);
 }
 
 // --- ACTIONS -------------------------------------------------
@@ -1229,6 +1398,25 @@ async function confirmKO(etapaId){
   }catch(e){alert('Error al guardar. Intenta de nuevo.');}
 }
 
+function goToGolesKO(etapaId){
+  S.ui.step='golesKO_'+etapaId;
+  render();
+}
+
+async function submitKO(etapaId){
+  if(!S.user) return;
+  if(!S.pred[etapaId]) S.pred[etapaId]={};
+  S.pred[etapaId].submitted=true;
+  try{
+    await db.doc('predictions/'+S.user.code).set(
+      {...S.pred, name:S.user.name, code:S.user.code},
+      {merge:true}
+    );
+    S.ui.step=null;
+    render();
+  }catch(err){alert('Error al guardar. Intenta de nuevo.');}
+}
+
 async function submitGrupos(){
   if(!S.user) return;
   S.pred.grupos_submitted=true;
@@ -1240,8 +1428,9 @@ async function submitGrupos(){
   try{
     await db.doc('predictions/'+S.user.code).set({...S.pred, name:S.user.name, code:S.user.code},{merge:true});
     S.ui.step=null;
+    S.ui.etapa='grupos';
     render();
-  }catch(e){alert('Error al guardar.');}
+  }catch(err){alert('Error al guardar. Intenta de nuevo.');}
 }
 
 // --- INIT ----------------------------------------------------
