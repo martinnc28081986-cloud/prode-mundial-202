@@ -334,7 +334,10 @@ function viewProde(){
     return stepEtapaEnviada(etapa, etapaInfo);
   }
 
-  if(etapa==='grupos') return stepGrupos();
+  if(etapa==='grupos'){
+    if(S.ui.step==='confirmGrupos') return stepConfirmGrupos();
+    return stepGrupos();
+  }
   return stepKO(etapa, etapaInfo);
 }
 
@@ -367,6 +370,39 @@ function stepEtapaEnviada(etapaId, etapaInfo){
     ${openOtras.length?'<div class="section-title">Otras etapas abiertas</div>'+openOtras.map(e=>'<button class="btn-full" style="margin-bottom:8px;padding:12px" onclick="S.ui.etapa=\''+e.id+'\';render()">'+e.label+'</button>').join(''):''}
     <button class="btn-full" style="margin-top:10px;padding:12px;color:#8899cc" onclick="go('ranking')">Ver tabla de posiciones</button>
   </div>
+</div>`;
+}
+
+// --- STEP CONFIRM GRUPOS -------------------------------------
+function stepConfirmGrupos(){
+  const pred=S.pred;
+  const totalPasan=GROUPS.filter(g=>pred.grupos?.[g]?.pasa).length;
+  return `
+<div class="page">
+  <div class="row" style="margin-bottom:16px">
+    <button class="back" style="padding:0;margin:0" onclick="S.ui.step=null;render()"><-</button>
+    <h2 style="flex:1">Confirmar fase de grupos</h2>
+  </div>
+  <div class="card" style="margin-bottom:14px">
+    ${GROUPS.map(g=>{
+      const pos=pred.grupos?.[g]?.pos||[];
+      const pasa=pred.grupos?.[g]?.pasa;
+      return `<div style="padding:7px 0;border-bottom:1px solid #1e2d5e;font-size:13px;display:flex;align-items:center;gap:6px">
+        <strong style="min-width:70px">Grupo ${g}:</strong>
+        <span style="color:#d4af37">1ro</span> ${esc(pos[0]||'?')}
+        <span style="color:#8899cc;margin:0 4px">/</span>
+        <span style="color:#8899cc">2do</span> ${esc(pos[1]||'?')}
+        <span style="color:#8899cc;margin:0 4px">/</span>
+        <span style="color:#8899cc">3ro</span> ${esc(pos[2]||'?')}
+        ${pasa?'<span style="color:#22c55e;font-size:10px;margin-left:4px">pasa</span>':''}
+      </div>`;
+    }).join('')}
+  </div>
+  <div class="panel" style="margin-bottom:14px;background:rgba(248,113,113,.05);border-color:rgba(248,113,113,.2)">
+    <p style="font-size:12px;color:#f87171">Una vez confirmado no podras modificar la fase de grupos.</p>
+  </div>
+  <button class="btn-primary btn-full" style="padding:13px;margin-bottom:8px" id="btnSubmitGrupos">Confirmar y enviar</button>
+  <button class="btn-full" style="padding:11px;color:#8899cc" onclick="S.ui.step=null;render()">Revisar predicciones</button>
 </div>`;
 }
 
@@ -1089,6 +1125,10 @@ function attachEvents(){
     S.pred.goles[e.target.dataset.gol]=v===''?null:parseInt(v);
   });
 
+  // Confirm grupos button
+  const btnSG=document.getElementById('btnSubmitGrupos');
+  if(btnSG) btnSG.onclick=submitGrupos;
+
   // Confirm KO button
   const btnConfirmKO=document.getElementById('btnConfirmKO');
   if(btnConfirmKO) btnConfirmKO.onclick=()=>confirmKO(btnConfirmKO.dataset.etapa);
@@ -1220,31 +1260,6 @@ async function init(){
       <div style="font-size:40px;margin-bottom:16px">!</div>
       <h2>Error de conexion</h2><p style="margin-top:8px">Verifica la configuracion de Firebase.</p>
     </div>`;
-    return;
-  }
-
-  // Manejar confirmacion de grupos si viene de ese paso
-  if(S.ui.step==='confirmGrupos'){
-    const div=document.createElement('div');
-    div.className='page';
-    div.innerHTML=`
-    <h2 style="margin-bottom:16px">Confirmar fase de grupos</h2>
-    <div class="card" style="margin-bottom:14px">
-      ${GROUPS.map(g=>{
-        const pos=S.pred.grupos?.[g]?.pos||[];
-        const pasa=S.pred.grupos?.[g]?.pasa;
-        return `<div style="padding:6px 0;border-bottom:1px solid #1e2d5e;font-size:13px">
-          <strong>Grupo ${g}:</strong> ${pos[0]||'?'} / ${pos[1]||'?'} / ${pos[2]||'?'}
-          ${pasa?'<span style="color:#22c55e;font-size:11px"> OK pasa</span>':''}
-        </div>`;
-      }).join('')}
-    </div>
-    <p style="font-size:12px;margin-bottom:16px;color:#f87171">Una vez confirmado no podras modificarlo.</p>
-    <button class="btn-primary btn-full" style="padding:13px;margin-bottom:8px" onclick="submitGrupos()">Confirmar</button>
-    <button class="btn-full" style="padding:11px;color:#8899cc" onclick="S.ui.step=null;render()">Revisar</button>`;
-    app.innerHTML='';
-    app.appendChild(div);
-    attachEvents();
     return;
   }
 
