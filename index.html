@@ -1433,26 +1433,46 @@ async function submitGrupos(){
   }catch(err){alert('Error al guardar. Intenta de nuevo.');}
 }
 
-// --- INIT ----------------------------------------------------
-async function init(){
-  try{
-    const[cfgDoc,partsSnap,resDoc]=await Promise.all([
-      db.doc('config/main').get(),
-      db.collection('participants').get(),
-      db.doc('results/official').get()
-    ]);
-    S.config=cfgDoc.exists?cfgDoc.data():emptyConfig();
-    S.parts=partsSnap.docs.map(d=>d.data());
-    S.results=resDoc.exists?resDoc.data():emptyResults();
-  }catch(e){
+// --- INIT con escucha en tiempo real -------------------------
+// Cuando el admin cambia config o resultados, todos los usuarios
+// ven la actualización automáticamente sin recargar la página.
+
+let _initError=false;
+let _ready={config:false, parts:false, results:false};
+
+function _checkReady(){
+  if(_ready.config&&_ready.parts&&_ready.results) render();
+}
+
+function init(){
+  // 1. Config en tiempo real (etapas abiertas/cerradas, cruces KO)
+  db.doc('config/main').onSnapshot(snap=>{
+    S.config=snap.exists?snap.data():emptyConfig();
+    _ready.config=true;
+    if(!_initError) _checkReady();
+    // Si ya estaba cargado → re-render para reflejar cambios del admin
+    else render();
+  }, err=>{
+    _initError=true;
     app.innerHTML=`<div class="page" style="text-align:center;padding-top:60px">
       <div style="font-size:40px;margin-bottom:16px">!</div>
-      <h2>Error de conexion</h2><p style="margin-top:8px">Verifica la configuracion de Firebase.</p>
+      <h2>Error de conexion</h2><p style="margin-top:8px">Verifica la configuracion de Firebase y las reglas de Firestore.</p>
     </div>`;
-    return;
-  }
+  });
 
-  render();
+  // 2. Participantes en tiempo real (altas/bajas de jugadores)
+  db.collection('participants').onSnapshot(snap=>{
+    S.parts=snap.docs.map(d=>d.data());
+    _ready.parts=true;
+    if(!_initError&&_ready.config&&_ready.results) render();
+  }, ()=>{ _ready.parts=true; _checkReady(); });
+
+  // 3. Resultados oficiales en tiempo real (puntuaciones se actualizan solas)
+  db.doc('results/official').onSnapshot(snap=>{
+    S.results=snap.exists?snap.data():emptyResults();
+    _ready.results=true;
+    if(!_initError) _checkReady();
+  }, ()=>{ _ready.results=true; _checkReady(); });
 }
 init();
 </script>
