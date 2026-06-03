@@ -403,7 +403,7 @@ function stepLogin(){
     <p style="font-size:13px">Ingresa tu codigo de participante</p>
   </div>
   <div class="lbl">Codigo</div>
-  <input type="text" id="codeInp" maxlength="6" placeholder="Ej: AB12" value="${esc(S.code)}"
+  <input type="text" id="codeInp" maxlength="6" placeholder="Ej: 1234" inputmode="numeric" value="${esc(S.code)}"
     style="text-align:center;font-size:22px;letter-spacing:6px;font-weight:700">
   <div class="err" id="codeErr">${S.codeErr}</div>
   <button class="btn-primary btn-full" style="margin-top:12px;padding:13px" id="btnCode">Continuar</button>
@@ -1267,7 +1267,7 @@ function attachEvents(){
   const btnCode=document.getElementById('btnCode');
   if(btnCode) btnCode.onclick=doLogin;
   const codeInp=document.getElementById('codeInp');
-  if(codeInp){ codeInp.oninput=e=>S.code=e.target.value.toUpperCase(); codeInp.onkeydown=e=>{if(e.key==='Enter')doLogin();}; }
+  if(codeInp){ codeInp.oninput=e=>S.code=e.target.value.replace(/[^0-9]/g,"");if(codeInp.value!==S.code)codeInp.value=S.code; codeInp.onkeydown=e=>{if(e.key==='Enter')doLogin();}; }
 
   // Admin login
   const btnAdminLogin=document.getElementById('btnAdminLogin');
@@ -1442,10 +1442,14 @@ function doAdminLogin(){
   else{S.admin.err='Contrasena incorrecta.';render();}
 }
 
+let _addingPartic=false;
 async function addPartic(){
+  if(_addingPartic) return;
   const name=S.newName.trim();
   if(!name){S.newNameErr='Ingresa un nombre.';render();return;}
-  const code=Math.random().toString(36).slice(2,6).toUpperCase();
+  // Codigo numerico de 4 digitos
+  const code=String(Math.floor(1000+Math.random()*9000));
+  _addingPartic=true;
   S.admin.saving=true;S.newNameErr='';render();
   try{
     await db.doc('participants/'+code).set({name,code,createdAt:new Date().toISOString()});
@@ -1454,7 +1458,9 @@ async function addPartic(){
     S.newNameMsg='OK '+name+' . Codigo: '+code;
     setTimeout(()=>{S.newNameMsg='';render();},12000);
   }catch(e){S.newNameErr='Error al guardar.';}
-  S.admin.saving=false;render();
+  S.admin.saving=false;
+  _addingPartic=false;
+  render();
 }
 
 async function delPartic(code,name){
