@@ -93,10 +93,14 @@ const TEAMS={
 };
 
 // Partidos de Argentina en grupos
+// kArg/kMes = claves de goles pronosticados
+// kResArg/kResMes = claves de resultado oficial (goles reales)
+// kGEP = clave del pronostico G/E/P del usuario
+// kResGEP = clave del resultado G/E/P real
 const ARG_MATCHES=[
-  {id:'arg_g1', ronda:1, rival:'Argelia',  kArg:'arg_g1', kMes:'mes_g1'},
-  {id:'arg_g2', ronda:2, rival:'Austria',  kArg:'arg_g2', kMes:'mes_g2'},
-  {id:'arg_g3', ronda:3, rival:'Jordania', kArg:'arg_g3', kMes:'mes_g3'},
+  {id:'arg_g1', ronda:1, rival:'Argelia',  kArg:'arg_g1', kMes:'mes_g1', kResArg:'res_arg_g1', kResMes:'res_mes_g1', kGEP:'gep_g1', kResGEP:'resgep_g1'},
+  {id:'arg_g2', ronda:2, rival:'Austria',  kArg:'arg_g2', kMes:'mes_g2', kResArg:'res_arg_g2', kResMes:'res_mes_g2', kGEP:'gep_g2', kResGEP:'resgep_g2'},
+  {id:'arg_g3', ronda:3, rival:'Jordania', kArg:'arg_g3', kMes:'mes_g3', kResArg:'res_arg_g3', kResMes:'res_mes_g3', kGEP:'gep_g3', kResGEP:'resgep_g3'},
 ];
 
 // ETAPAS
@@ -171,31 +175,50 @@ function statusBadge(st){
 function calcScore(pred, res, cfg){
   let s=0;
   if(!pred||!res) return 0;
+  const rG=res.goles||{};
+  const pG=pred.goles||{};
 
-  // 1. Grupos: 1ro=3pts, 2do=2pts, 3ro=1pt
+  // 1. Partidos ARG en grupos: G/E/P=3pts, marcador exacto=+1pt, goles ARG exactos=+3pts, goles Messi exactos=+3pts
+  ARG_MATCHES.forEach(m=>{
+    const rGEP=rG[m.kResGEP];
+    const pGEP=pG[m.kGEP];
+    const rArg=rG[m.kResArg];
+    const pArg=pG[m.kArg];
+    const rMes=rG[m.kResMes];
+    const pMes=pG[m.kMes];
+    const gepOk=rGEP&&pGEP&&rGEP===pGEP;
+    if(gepOk) s+=3;
+    // Marcador exacto (GEP correcto + goles ARG exactos)
+    if(gepOk && rArg!==undefined&&rArg!==null&&rArg!=='' && pArg!==undefined&&pArg!==null&&pArg!=='' && parseInt(pArg)===parseInt(rArg)) s+=1;
+    // Goles ARG exactos (independiente del GEP)
+    if(rArg!==undefined&&rArg!==null&&rArg!=='' && pArg!==undefined&&pArg!==null&&pArg!=='' && parseInt(pArg)===parseInt(rArg)) s+=3;
+    // Goles Messi exactos
+    if(rMes!==undefined&&rMes!==null&&rMes!=='' && pMes!==undefined&&pMes!==null&&pMes!=='' && parseInt(pMes)===parseInt(rMes)) s+=3;
+  });
+
+  // 2. Grupos: 1ro=3pts, 2do=2pts (se elimina 3ro)
   GROUPS.forEach(g=>{
     const pp=pred.grupos?.[g]?.pos||[];
     const rp=res.grupos?.[g]?.pos||[];
     if(pp[0]&&rp[0]&&pp[0]===rp[0]) s+=3;
     if(pp[1]&&rp[1]&&pp[1]===rp[1]) s+=2;
-    if(pp[2]&&rp[2]&&pp[2]===rp[2]) s+=1;
   });
 
-  // 2. Terceros que pasan: 2pts c/u
+  // 3. Terceros que pasan: 2pts c/u
   const rT=res.terceros||[];
   (pred.grupos?.terceros||[]).forEach(t=>{ if(t&&rT.includes(t)) s+=2; });
 
-  // 3. Goles Argentina y Messi: exacto=3, +-1=1
-  const rG=res.goles||{};
-  const pG=pred.goles||{};
+  // 4. Goles ARG y Messi en KO: solo exacto = 3pts
+  const grupoKeys=new Set(ARG_MATCHES.flatMap(m=>[m.kArg,m.kMes,m.kResArg,m.kResMes,m.kGEP,m.kResGEP]));
   Object.keys(rG).forEach(k=>{
-    const rv=rG[k]; if(rv===null||rv===undefined) return;
+    if(!k.endsWith('_arg')&&!k.endsWith('_mes')) return;
+    if(grupoKeys.has(k)) return;
+    const rv=rG[k]; if(rv===null||rv===undefined||rv==='') return;
     const pv=pG[k]; if(pv===null||pv===undefined||pv==='') return;
-    const d=Math.abs(parseInt(pv)-parseInt(rv));
-    if(d===0) s+=3; else if(d===1) s+=1;
+    if(parseInt(pv)===parseInt(rv)) s+=3;
   });
 
-  // 4. KO: ganador por ronda
+  // 5. KO: ganador por ronda
   const rondaPts={r16:2, r8:3, r4:4, r2:5, r3p:5, final:10};
   const resKO=res.ko||{};
   const predKO=pred.ko||{};
@@ -213,8 +236,37 @@ function calcScore(pred, res, cfg){
 function calcScoreDetail(pred, res){
   const items=[];
   if(!pred||!res) return items;
+  const rG=res.goles||{};
+  const pG=pred.goles||{};
 
-  // Grupos
+  // Partidos ARG en grupos
+  ARG_MATCHES.forEach(m=>{
+    const rGEP=rG[m.kResGEP];
+    const pGEP=pG[m.kGEP];
+    const rArg=rG[m.kResArg];
+    const pArg=pG[m.kArg];
+    const rMes=rG[m.kResMes];
+    const pMes=pG[m.kMes];
+    const gepLabel={'G':'Victoria ARG','E':'Empate','P':'Derrota ARG'};
+    const gepOk=rGEP&&pGEP&&rGEP===pGEP;
+    if(rGEP){
+      if(gepOk) items.push({cat:'ARG Grupos', desc:'F'+m.ronda+' vs '+m.rival+' - resultado '+gepLabel[rGEP], pts:3, ok:true});
+      else if(pGEP) items.push({cat:'ARG Grupos', desc:'F'+m.ronda+' vs '+m.rival+' - predijo '+gepLabel[pGEP]+', fue '+gepLabel[rGEP], pts:0, ok:false});
+    }
+    if(rArg!==undefined&&rArg!==null&&rArg!==''){
+      const pArgOk=pArg!==undefined&&pArg!==null&&pArg!==''&&parseInt(pArg)===parseInt(rArg);
+      if(gepOk&&pArgOk) items.push({cat:'ARG Grupos', desc:'F'+m.ronda+' marcador exacto (+1 extra)', pts:1, ok:true});
+      if(pArgOk) items.push({cat:'ARG Grupos', desc:'F'+m.ronda+' goles ARG='+rArg+' (exacto)', pts:3, ok:true});
+      else if(pArg!==undefined&&pArg!==null&&pArg!=='') items.push({cat:'ARG Grupos', desc:'F'+m.ronda+' goles ARG: predijo '+pArg+', fue '+rArg, pts:0, ok:false});
+    }
+    if(rMes!==undefined&&rMes!==null&&rMes!==''){
+      const pMesOk=pMes!==undefined&&pMes!==null&&pMes!==''&&parseInt(pMes)===parseInt(rMes);
+      if(pMesOk) items.push({cat:'ARG Grupos', desc:'F'+m.ronda+' goles Messi='+rMes+' (exacto)', pts:3, ok:true});
+      else if(pMes!==undefined&&pMes!==null&&pMes!=='') items.push({cat:'ARG Grupos', desc:'F'+m.ronda+' goles Messi: predijo '+pMes+', fue '+rMes, pts:0, ok:false});
+    }
+  });
+
+  // Grupos: 1ro=3pts, 2do=2pts
   GROUPS.forEach(g=>{
     const pp=pred.grupos?.[g]?.pos||[];
     const rp=res.grupos?.[g]?.pos||[];
@@ -223,8 +275,6 @@ function calcScoreDetail(pred, res){
     else if(pp[0]) items.push({cat:'Grupos', desc:'1ro Grupo '+g+': predijo '+pp[0]+', fue '+rp[0], pts:0, ok:false});
     if(pp[1]&&rp[1]&&pp[1]===rp[1]) items.push({cat:'Grupos', desc:'2do Grupo '+g+': '+pp[1], pts:2, ok:true});
     else if(pp[1]&&rp[1]) items.push({cat:'Grupos', desc:'2do Grupo '+g+': predijo '+pp[1]+', fue '+rp[1], pts:0, ok:false});
-    if(pp[2]&&rp[2]&&pp[2]===rp[2]) items.push({cat:'Grupos', desc:'3ro Grupo '+g+': '+pp[2], pts:1, ok:true});
-    else if(pp[2]&&rp[2]) items.push({cat:'Grupos', desc:'3ro Grupo '+g+': predijo '+pp[2]+', fue '+rp[2], pts:0, ok:false});
   });
 
   // Terceros
@@ -232,30 +282,27 @@ function calcScoreDetail(pred, res){
   (pred.grupos?.terceros||[]).forEach(t=>{
     if(!t) return;
     const ok=rT.includes(t);
-    items.push({cat:'Terceros', desc:(ok?'OK':'No') +': '+t+' pasa a 16avos', pts:ok?2:0, ok});
+    items.push({cat:'Terceros', desc:(ok?'OK':'No')+': '+t+' pasa a 16avos', pts:ok?2:0, ok});
   });
 
-  // Goles
-  const rG=res.goles||{};
-  const pG=pred.goles||{};
-  const golLabels={
-    arg_g1:'ARG goles vs Argelia (F1)', mes_g1:'Messi goles vs Argelia (F1)',
-    arg_g2:'ARG goles vs Austria (F2)',  mes_g2:'Messi goles vs Austria (F2)',
-    arg_g3:'ARG goles vs Jordania (F3)', mes_g3:'Messi goles vs Jordania (F3)',
-  };
-  Object.keys(rG).forEach(k=>{
-    const rv=rG[k]; if(rv===null||rv===undefined) return;
-    const pv=pG[k]; if(pv===null||pv===undefined||pv==='') return;
-    const d=Math.abs(parseInt(pv)-parseInt(rv));
-    const lbl=golLabels[k]||k;
-    if(d===0) items.push({cat:'Goles', desc:lbl+': '+pv+' (exacto)', pts:3, ok:true});
-    else if(d===1) items.push({cat:'Goles', desc:lbl+': predijo '+pv+', fue '+rv+' (+-1)', pts:1, ok:'partial'});
-    else items.push({cat:'Goles', desc:lbl+': predijo '+pv+', fue '+rv, pts:0, ok:false});
-  });
-
-  // KO
-  const rondaPts={r16:2, r8:3, r4:4, r2:5, r3p:5, final:10};
+  // Goles ARG y Messi en KO: solo exacto = 3pts
+  const grupoKeys=new Set(ARG_MATCHES.flatMap(m=>[m.kArg,m.kMes,m.kResArg,m.kResMes,m.kGEP,m.kResGEP]));
   const rondaLabel={r16:'16avos', r8:'Octavos', r4:'Cuartos', r2:'Semis', r3p:'3er puesto', final:'Final'};
+  Object.keys(rG).forEach(k=>{
+    if(!k.endsWith('_arg')&&!k.endsWith('_mes')) return;
+    if(grupoKeys.has(k)) return;
+    const rv=rG[k]; if(rv===null||rv===undefined||rv==='') return;
+    const pv=pG[k]; if(pv===null||pv===undefined||pv==='') return;
+    const label=k.endsWith('_arg')?'Goles ARG':'Goles Messi';
+    // Extract ronda from key e.g. r16_1_arg -> r16
+    const rondaKey=k.split('_')[0];
+    const rl=rondaLabel[rondaKey]||rondaKey;
+    if(parseInt(pv)===parseInt(rv)) items.push({cat:'Goles KO', desc:rl+' '+label+'='+rv+' (exacto)', pts:3, ok:true});
+    else items.push({cat:'Goles KO', desc:rl+' '+label+': predijo '+pv+', fue '+rv, pts:0, ok:false});
+  });
+
+  // KO ganador
+  const rondaPts={r16:2, r8:3, r4:4, r2:5, r3p:5, final:10};
   const resKO=res.ko||{};
   const predKO=pred.ko||{};
   Object.keys(resKO).forEach(id=>{
@@ -397,26 +444,45 @@ function stepGolesGrupos(){
   const rows=ARG_G.map(m=>{
     const st=cfg.etapas?.grupos?.[m.ronda]||'pending';
     const disabled=st==='pending';
+    const gepVal=pred.goles?.[m.kGEP]||'';
     return `
     <div class="panel" style="margin-bottom:10px;${disabled?'opacity:.45':''}">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-        <div style="font-size:13px;font-weight:600;color:#2979ff">${m.label} - vs ${m.rival}</div>
+        <div style="font-size:13px;font-weight:600;color:#2979ff">${m.label} - Argentina vs ${m.rival}</div>
         ${disabled?'<span style="font-size:10px;color:#8899cc;background:#1e2d5e;padding:3px 8px;border-radius:6px">No disponible aun</span>':''}
+      </div>
+      <div style="margin-bottom:12px">
+        <div class="lbl">Resultado del partido (+3 pts)</div>
+        <div style="display:flex;gap:6px;margin-top:6px">
+          <button class="ko-btn${gepVal==='G'?' on':''}" ${disabled?'disabled':''} data-gol="${m.kGEP}" data-gep="G"
+            style="flex:1;padding:10px 4px;font-size:13px;font-weight:700">
+            Argentina gana
+          </button>
+          <button class="ko-btn${gepVal==='E'?' on':''}" ${disabled?'disabled':''} data-gol="${m.kGEP}" data-gep="E"
+            style="flex:1;padding:10px 4px;font-size:13px;font-weight:700">
+            Empate
+          </button>
+          <button class="ko-btn${gepVal==='P'?' on':''}" ${disabled?'disabled':''} data-gol="${m.kGEP}" data-gep="P"
+            style="flex:1;padding:10px 4px;font-size:13px;font-weight:700">
+            ${m.rival} gana
+          </button>
+        </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
         <div>
-          <div class="lbl">Goles Argentina</div>
+          <div class="lbl">Goles Argentina (+3 pts exacto)</div>
           <input type="number" min="0" max="20" placeholder="--" ${disabled?'disabled':''}
             data-gol="${m.kArg}" value="${pred.goles?.[m.kArg]??''}"
             style="text-align:center;font-size:24px;font-weight:700;padding:10px">
         </div>
         <div>
-          <div class="lbl">Goles Messi</div>
+          <div class="lbl">Goles Messi (+3 pts exacto)</div>
           <input type="number" min="0" max="10" placeholder="--" ${disabled?'disabled':''}
             data-gol="${m.kMes}" value="${pred.goles?.[m.kMes]??''}"
             style="text-align:center;font-size:24px;font-weight:700;padding:10px">
         </div>
       </div>
+      ${gepVal?'<div style="font-size:11px;color:#8899cc;margin-top:8px">Marcador exacto (GEP correcto + goles ARG exactos) = +1 pt extra</div>':''}
     </div>`;
   }).join('');
 
@@ -431,7 +497,7 @@ function stepGolesGrupos(){
     <span style="font-size:11px;color:#8899cc">${esc(S.user?.name)}</span>
   </div>
   <div style="background:rgba(41,121,255,.08);border:1px solid rgba(41,121,255,.25);border-radius:11px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:#8899cc">
-    Exacto: +3 pts &nbsp;|&nbsp; Diferencia de 1: +1 pt
+    Resultado G/E/P: +3 pts &nbsp;|&nbsp; Marcador exacto: +1 extra &nbsp;|&nbsp; Goles exactos: +3 pts c/u
   </div>
   ${rows}
   <button class="btn-primary btn-full" style="padding:13px;margin-top:4px" onclick="S.ui.step='confirmGrupos';render()">
@@ -491,7 +557,7 @@ function stepGolesKO(etapaId, etapaInfo){
     </div>
   </div>
   <div style="background:rgba(41,121,255,.08);border:1px solid rgba(41,121,255,.25);border-radius:11px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:#8899cc">
-    Exacto: +3 pts &nbsp;|&nbsp; Diferencia de 1: +1 pt
+    Goles exactos: +3 pts &nbsp;|&nbsp; Solo se suman si acertás el numero exacto
   </div>
   ${rows}
   <button class="btn-primary btn-full" style="padding:13px;margin-top:4px" onclick="S.ui.step='confirmKO_${etapaId}';render()">
@@ -1040,18 +1106,41 @@ function subGolesGrupos(cfg,res){
         Fecha ${m.ronda} -- Argentina vs ${m.rival}
         ${rondaSt==='pending'?'<span style="font-size:10px;color:#8899cc"> (fecha no abierta)</span>':''}
       </div>
+      <div style="margin-bottom:10px">
+        <div class="lbl">Resultado real del partido</div>
+        <div style="display:flex;gap:6px;margin-top:6px">
+          ${['G','E','P'].map(v=>`<button class="ko-btn${res.goles?.[m.kResGEP]===v?' on':''}"
+            ${disabled} data-res="goles.${m.kResGEP}" data-gepval="${v}"
+            style="flex:1;padding:8px 4px;font-size:12px;font-weight:700"
+            onclick="">${v==='G'?'ARG gana':v==='E'?'Empate':m.rival+' gana'}</button>`).join('')}
+        </div>
+      </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div>
-          <div class="lbl">Goles Argentina</div>
+          <div class="lbl">Goles Argentina (real)</div>
           <input type="number" min="0" max="20" placeholder="--" ${disabled}
-            data-res="goles.${m.kArg}" value="${res.goles?.[m.kArg]??''}"
+            data-res="goles.${m.kResArg}" value="${res.goles?.[m.kResArg]??''}"
             style="text-align:center;font-size:22px;font-weight:700;padding:10px">
         </div>
         <div>
-          <div class="lbl">Goles Messi</div>
+          <div class="lbl">Goles Messi (real)</div>
+          <input type="number" min="0" max="10" placeholder="--" ${disabled}
+            data-res="goles.${m.kResMes}" value="${res.goles?.[m.kResMes]??''}"
+            style="text-align:center;font-size:22px;font-weight:700;padding:10px">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid #1e2d5e">
+        <div>
+          <div class="lbl">Goles ARG (pred. usuarios)</div>
+          <input type="number" min="0" max="20" placeholder="--" ${disabled}
+            data-res="goles.${m.kArg}" value="${res.goles?.[m.kArg]??''}"
+            style="text-align:center;font-size:18px;font-weight:700;padding:8px;opacity:.7">
+        </div>
+        <div>
+          <div class="lbl">Goles Messi (pred. usuarios)</div>
           <input type="number" min="0" max="10" placeholder="--" ${disabled}
             data-res="goles.${m.kMes}" value="${res.goles?.[m.kMes]??''}"
-            style="text-align:center;font-size:22px;font-weight:700;padding:10px">
+            style="text-align:center;font-size:18px;font-weight:700;padding:8px;opacity:.7">
         </div>
       </div>
     </div>`;
@@ -1287,11 +1376,36 @@ function attachEvents(){
     const sy=window.scrollY;render();requestAnimationFrame(()=>window.scrollTo(0,sy));
   });
 
-  // Goles inputs en prode
-  document.querySelectorAll('[data-gol]').forEach(inp=>inp.oninput=e=>{
-    if(!S.pred.goles) S.pred.goles={};
-    const v=e.target.value;
-    S.pred.goles[e.target.dataset.gol]=v===''?null:parseInt(v);
+  // Goles inputs en prode (numeros)
+  document.querySelectorAll('[data-gol]').forEach(inp=>{
+    if(inp.tagName==='INPUT') inp.oninput=e=>{
+      if(!S.pred.goles) S.pred.goles={};
+      const v=e.target.value;
+      S.pred.goles[e.target.dataset.gol]=v===''?null:parseInt(v);
+    };
+    // Botones G/E/P
+    if(inp.tagName==='BUTTON'&&inp.dataset.gep) inp.onclick=e=>{
+      if(!S.pred.goles) S.pred.goles={};
+      const key=e.currentTarget.dataset.gol;
+      const val=e.currentTarget.dataset.gep;
+      S.pred.goles[key]=val;
+      render();
+    };
+  });
+
+  // Botones GEP resultado real (admin)
+  document.querySelectorAll('[data-gepval]').forEach(btn=>{
+    btn.onclick=e=>{
+      const key=e.currentTarget.dataset.res; // e.g. "goles.resgep_g1"
+      const val=e.currentTarget.dataset.gepval;
+      if(!key) return;
+      const parts=key.split('.');
+      if(parts[0]==='goles'){
+        if(!S.results.goles) S.results.goles={};
+        S.results.goles[parts[1]]=val;
+      }
+      render();
+    };
   });
 
   // Confirm grupos button
