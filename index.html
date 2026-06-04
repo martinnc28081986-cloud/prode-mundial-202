@@ -1229,31 +1229,57 @@ function subClasificados(res){
 }
 
 function subCruces(cfg){
-  // Admin carga los cruces para cada etapa KO directamente
   const koEtapas=ETAPAS.filter(e=>e.id!=='grupos');
-  return `
+  const res=S.results||{};
+
+  // Armar lista de clasificados segun lo que cargo el admin en Clasificados
+  // 1ros y 2dos de cada grupo + 8 terceros
+  const primeros=GROUPS.map(g=>res.grupos?.[g]?.pos?.[0]||'').filter(Boolean);
+  const segundos=GROUPS.map(g=>res.grupos?.[g]?.pos?.[1]||'').filter(Boolean);
+  const terceros=(res.terceros||[]).filter(Boolean);
+  const clasificados=[...new Set([...primeros,...segundos,...terceros])].sort();
+
+  // Para rondas posteriores (r8, r4...) usar los equipos que figuran en cruces anteriores
+  function equiposDisponibles(etapaId){
+    if(etapaId==='r16') return clasificados;
+    // Para rondas siguientes, tomar los equipos ya cargados en cruces previos
+    const prevMap={r8:'r16',r4:'r8',r2:'r4',final:'r2'};
+    const prevId=prevMap[etapaId];
+    if(!prevId) return clasificados;
+    const prevCruces=cfg.etapas?.[prevId]?.cruces||[];
+    const equipos=[...new Set(prevCruces.flatMap(c=>[c.h,c.a]).filter(Boolean))].sort();
+    return equipos.length?equipos:clasificados;
+  }
+
+  const sinClasificados=clasificados.length===0;
+
+  return \`
 <div>
-  <p style="font-size:12px;margin-bottom:12px">Carga los cruces reales antes de abrir cada etapa.</p>
-  ${koEtapas.map(e=>{
+  \${sinClasificados?'<div style="background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);border-radius:10px;padding:10px 12px;font-size:12px;color:#fbbf24;margin-bottom:12px">Primero cargá los <b>Clasificados</b> (1ro, 2do y 8 terceros de cada grupo) para que aparezcan los equipos en la lista.</div>':''}
+  <p style="font-size:12px;margin-bottom:12px;color:#8899cc">Seleccioná los equipos de cada cruce antes de abrir la etapa.</p>
+  \${koEtapas.map(e=>{
     const cruces=cfg.etapas?.[e.id]?.cruces||[{h:'',a:''},{h:'',a:''},{h:'',a:''},{h:'',a:''}];
     const n=e.id==='r16'?16:e.id==='r8'?8:e.id==='r4'?4:e.id==='r2'?2:2;
-    // Ensure we have n slots
     while(cruces.length<n) cruces.push({h:'',a:''});
-    return `
+    const equipos=equiposDisponibles(e.id);
+    const opts=['<option value="">-- Equipo --</option>',...equipos.map(t=>\`<option value="\${esc(t)}">\${esc(t)}</option>\`)].join('');
+    return \`
     <div class="panel" style="margin-bottom:10px">
-      <h3 style="margin-bottom:8px">${e.label} (${n} partidos)</h3>
-      ${cruces.slice(0,n).map((c,i)=>`
-      <div style="display:flex;gap:6px;align-items:center;margin-bottom:7px">
-        <span style="font-size:11px;color:#8899cc;min-width:18px">${i+1}</span>
-        <input type="text" placeholder="Local" value="${esc(c.h)}"
-          data-cruce="${e.id}.${i}.h" style="font-size:12px;padding:7px 8px">
-        <span style="color:#1e2d5e;font-size:11px">vs</span>
-        <input type="text" placeholder="Visit." value="${esc(c.a)}"
-          data-cruce="${e.id}.${i}.a" style="font-size:12px;padding:7px 8px">
-      </div>`).join('')}
-    </div>`;
+      <h3 style="margin-bottom:8px">\${e.label} <span style="font-size:11px;color:#8899cc;font-weight:400">(\${n} partidos)</span></h3>
+      \${cruces.slice(0,n).map((c,i)=>\`
+      <div style="display:grid;grid-template-columns:18px 1fr auto 1fr;gap:5px;align-items:center;margin-bottom:6px">
+        <span style="font-size:11px;color:#8899cc;text-align:center">\${i+1}</span>
+        <select data-cruce="\${e.id}.\${i}.h">
+          \${opts.replace(\`value="\${esc(c.h)}"\`,\`value="\${esc(c.h)}" selected\`)}
+        </select>
+        <span style="color:#8899cc;font-size:11px;text-align:center">vs</span>
+        <select data-cruce="\${e.id}.\${i}.a">
+          \${opts.replace(\`value="\${esc(c.a)}"\`,\`value="\${esc(c.a)}" selected\`)}
+        </select>
+      </div>\`).join('')}
+    </div>\`;
   }).join('')}
-</div>`;
+</div>\`;
 }
 
 function subKO(cfg,res){
@@ -1535,10 +1561,67 @@ async function saveConfig(){
   render();
 }
 
+// Genera automaticamente los cruces de la siguiente ronda
+// basandose en los ganadores ya cargados en resultados KO
+function autoGenerarCrucesSiguiente(){
+  const nextMap={r16:'r8', r8:'r4', r4:'r2', r2:'final'};
+  const nMap={r16:16, r8:8, r4:4, r2:2};
+
+  Object.keys(nextMap).forEach(etapaActual=>{
+    const etapaSig=nextMap[etapaActual];
+    const nActual=nMap[etapaActual];
+    const crucesActuales=S.config?.etapas?.[etapaActual]?.cruces||[];
+    if(!crucesActuales.length) return;
+
+    // Obtener ganadores y perdedores en orden
+    const ganadores=[];
+    const perdedores=[];
+    for(let i=0;i<nActual;i++){
+      const mid=etapaActual+'_'+(i+1);
+      const r=S.results?.ko?.[mid];
+      const c=crucesActuales[i];
+      if(r?.w&&c){
+        ganadores.push(r.w==='h'?c.h:c.a);
+        perdedores.push(r.w==='h'?c.a:c.h);
+      } else {
+        ganadores.push('');
+        perdedores.push('');
+      }
+    }
+
+    // Solo generar si hay al menos un ganador
+    if(!ganadores.some(Boolean)) return;
+
+    // Armar cruces de a pares: 1vs2, 3vs4, etc.
+    const nuevosCruces=[];
+    for(let i=0;i<ganadores.length;i+=2){
+      nuevosCruces.push({h:ganadores[i]||'', a:ganadores[i+1]||''});
+    }
+
+    // Para la Final: agregar tambien el 3er puesto (perdedores de semis)
+    if(etapaSig==='final'&&perdedores.length===2){
+      nuevosCruces.push({h:perdedores[0]||'', a:perdedores[1]||''});
+    }
+
+    // Solo actualizar si hay cambios reales
+    if(!S.config.etapas[etapaSig]) S.config.etapas[etapaSig]={status:'pending',cruces:[]};
+    const crucesActualesSig=S.config.etapas[etapaSig].cruces||[];
+    const cambio=nuevosCruces.some((c,i)=>c.h!==crucesActualesSig[i]?.h||c.a!==crucesActualesSig[i]?.a);
+    if(cambio){
+      S.config.etapas[etapaSig].cruces=nuevosCruces;
+    }
+  });
+}
+
 async function saveResults(){
+  // Antes de guardar, auto-generar cruces de la siguiente ronda
+  autoGenerarCrucesSiguiente();
   S.admin.saving=true;render();
   try{
-    await db.doc('results/official').set(S.results||emptyResults());
+    await Promise.all([
+      db.doc('results/official').set(S.results||emptyResults()),
+      db.doc('config/main').set(S.config), // guardar config con cruces auto-generados
+    ]);
     S.admin.msg='OK Resultados guardados.';
   }catch(e){S.admin.msg='Error al guardar.';}
   S.admin.saving=false;
