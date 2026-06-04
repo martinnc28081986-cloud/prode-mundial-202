@@ -1232,17 +1232,13 @@ function subCruces(cfg){
   const koEtapas=ETAPAS.filter(e=>e.id!=='grupos');
   const res=S.results||{};
 
-  // Armar lista de clasificados segun lo que cargo el admin en Clasificados
-  // 1ros y 2dos de cada grupo + 8 terceros
   const primeros=GROUPS.map(g=>res.grupos?.[g]?.pos?.[0]||'').filter(Boolean);
   const segundos=GROUPS.map(g=>res.grupos?.[g]?.pos?.[1]||'').filter(Boolean);
   const terceros=(res.terceros||[]).filter(Boolean);
   const clasificados=[...new Set([...primeros,...segundos,...terceros])].sort();
 
-  // Para rondas posteriores (r8, r4...) usar los equipos que figuran en cruces anteriores
   function equiposDisponibles(etapaId){
     if(etapaId==='r16') return clasificados;
-    // Para rondas siguientes, tomar los equipos ya cargados en cruces previos
     const prevMap={r8:'r16',r4:'r8',r2:'r4',final:'r2'};
     const prevId=prevMap[etapaId];
     if(!prevId) return clasificados;
@@ -1252,34 +1248,40 @@ function subCruces(cfg){
   }
 
   const sinClasificados=clasificados.length===0;
+  let html='<div>';
+  if(sinClasificados) html+='<div style="background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);border-radius:10px;padding:10px 12px;font-size:12px;color:#fbbf24;margin-bottom:12px">Primero cargá los <b>Clasificados</b> para que aparezcan los equipos en la lista.</div>';
+  html+='<p style="font-size:12px;margin-bottom:12px;color:#8899cc">Seleccioná los equipos de cada cruce antes de abrir la etapa.</p>';
 
-  return \`
-<div>
-  \${sinClasificados?'<div style="background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);border-radius:10px;padding:10px 12px;font-size:12px;color:#fbbf24;margin-bottom:12px">Primero cargá los <b>Clasificados</b> (1ro, 2do y 8 terceros de cada grupo) para que aparezcan los equipos en la lista.</div>':''}
-  <p style="font-size:12px;margin-bottom:12px;color:#8899cc">Seleccioná los equipos de cada cruce antes de abrir la etapa.</p>
-  \${koEtapas.map(e=>{
+  koEtapas.forEach(e=>{
     const cruces=cfg.etapas?.[e.id]?.cruces||[{h:'',a:''},{h:'',a:''},{h:'',a:''},{h:'',a:''}];
     const n=e.id==='r16'?16:e.id==='r8'?8:e.id==='r4'?4:e.id==='r2'?2:2;
     while(cruces.length<n) cruces.push({h:'',a:''});
     const equipos=equiposDisponibles(e.id);
-    const opts=['<option value="">-- Equipo --</option>',...equipos.map(t=>\`<option value="\${esc(t)}">\${esc(t)}</option>\`)].join('');
-    return \`
-    <div class="panel" style="margin-bottom:10px">
-      <h3 style="margin-bottom:8px">\${e.label} <span style="font-size:11px;color:#8899cc;font-weight:400">(\${n} partidos)</span></h3>
-      \${cruces.slice(0,n).map((c,i)=>\`
-      <div style="display:grid;grid-template-columns:18px 1fr auto 1fr;gap:5px;align-items:center;margin-bottom:6px">
-        <span style="font-size:11px;color:#8899cc;text-align:center">\${i+1}</span>
-        <select data-cruce="\${e.id}.\${i}.h">
-          \${opts.replace(\`value="\${esc(c.h)}"\`,\`value="\${esc(c.h)}" selected\`)}
-        </select>
-        <span style="color:#8899cc;font-size:11px;text-align:center">vs</span>
-        <select data-cruce="\${e.id}.\${i}.a">
-          \${opts.replace(\`value="\${esc(c.a)}"\`,\`value="\${esc(c.a)}" selected\`)}
-        </select>
-      </div>\`).join('')}
-    </div>\`;
-  }).join('')}
-</div>\`;
+
+    let optsH='<option value="">-- Equipo --</option>';
+    let optsA='<option value="">-- Equipo --</option>';
+    equipos.forEach(t=>{
+      optsH+='<option value="'+esc(t)+'">'+esc(t)+'</option>';
+      optsA+='<option value="'+esc(t)+'">'+esc(t)+'</option>';
+    });
+
+    html+='<div class="panel" style="margin-bottom:10px">';
+    html+='<h3 style="margin-bottom:8px">'+e.label+' <span style="font-size:11px;color:#8899cc;font-weight:400">('+n+' partidos)</span></h3>';
+
+    cruces.slice(0,n).forEach((c,i)=>{
+      const selH=optsH.replace('value="'+esc(c.h)+'"','value="'+esc(c.h)+'" selected');
+      const selA=optsA.replace('value="'+esc(c.a)+'"','value="'+esc(c.a)+'" selected');
+      html+='<div style="display:grid;grid-template-columns:18px 1fr auto 1fr;gap:5px;align-items:center;margin-bottom:6px">';
+      html+='<span style="font-size:11px;color:#8899cc;text-align:center">'+(i+1)+'</span>';
+      html+='<select data-cruce="'+e.id+'.'+i+'.h">'+selH+'</select>';
+      html+='<span style="color:#8899cc;font-size:11px;text-align:center">vs</span>';
+      html+='<select data-cruce="'+e.id+'.'+i+'.a">'+selA+'</select>';
+      html+='</div>';
+    });
+    html+='</div>';
+  });
+  html+='</div>';
+  return html;
 }
 
 function subKO(cfg,res){
@@ -1684,40 +1686,71 @@ async function submitGrupos(){
 
 let _initError=false;
 let _ready={config:false, parts:false, results:false};
+let _initDone=false;
 
 function _checkReady(){
-  if(_ready.config&&_ready.parts&&_ready.results) render();
+  if(_ready.config&&_ready.parts&&_ready.results&&!_initDone){
+    _initDone=true;
+    render();
+  }
+}
+
+function _showError(msg){
+  document.getElementById('app').innerHTML=`
+    <div class="page" style="text-align:center;padding-top:60px">
+      <div style="font-size:40px;margin-bottom:16px">!</div>
+      <h2>Error de conexion</h2>
+      <p style="margin-top:8px;color:#8899cc">${msg}</p>
+      <button class="btn-primary" style="margin-top:24px;padding:12px 28px"
+        onclick="location.reload()">Reintentar</button>
+    </div>`;
 }
 
 function init(){
-  // 1. Config en tiempo real (etapas abiertas/cerradas, cruces KO)
+  // Timeout: si en 10 segundos no cargó, mostrar error con botón reintentar
+  const timeout=setTimeout(()=>{
+    if(!_initDone){
+      _showError('No se pudo conectar con Firebase. Verifica tu conexión a internet y volvé a intentar.');
+    }
+  }, 10000);
+
+  // 1. Config en tiempo real
   db.doc('config/main').onSnapshot(snap=>{
     S.config=snap.exists?snap.data():emptyConfig();
     _ready.config=true;
-    if(!_initError) _checkReady();
-    // Si ya estaba cargado → re-render para reflejar cambios del admin
-    else render();
+    clearTimeout(timeout);
+    _checkReady();
+    // Re-render si ya estaba listo (cambio del admin)
+    if(_initDone) render();
   }, err=>{
-    _initError=true;
-    app.innerHTML=`<div class="page" style="text-align:center;padding-top:60px">
-      <div style="font-size:40px;margin-bottom:16px">!</div>
-      <h2>Error de conexion</h2><p style="margin-top:8px">Verifica la configuracion de Firebase y las reglas de Firestore.</p>
-    </div>`;
+    _ready.config=true; // marcar como listo con config vacía para no bloquear
+    S.config=emptyConfig();
+    _checkReady();
   });
 
-  // 2. Participantes en tiempo real (altas/bajas de jugadores)
+  // 2. Participantes en tiempo real
   db.collection('participants').onSnapshot(snap=>{
     S.parts=snap.docs.map(d=>d.data());
     _ready.parts=true;
-    if(!_initError&&_ready.config&&_ready.results) render();
-  }, ()=>{ _ready.parts=true; _checkReady(); });
+    _checkReady();
+    if(_initDone) render();
+  }, ()=>{
+    S.parts=[];
+    _ready.parts=true;
+    _checkReady();
+  });
 
-  // 3. Resultados oficiales en tiempo real (puntuaciones se actualizan solas)
+  // 3. Resultados oficiales en tiempo real
   db.doc('results/official').onSnapshot(snap=>{
     S.results=snap.exists?snap.data():emptyResults();
     _ready.results=true;
-    if(!_initError) _checkReady();
-  }, ()=>{ _ready.results=true; _checkReady(); });
+    _checkReady();
+    if(_initDone) render();
+  }, ()=>{
+    S.results=emptyResults();
+    _ready.results=true;
+    _checkReady();
+  });
 }
 init();
 </script>
