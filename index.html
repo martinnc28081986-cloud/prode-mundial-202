@@ -374,7 +374,7 @@ function viewHome(){
   <div class="page">
     <div class="card" style="margin-bottom:12px">${etapasInfo}</div>
     <button class="btn-primary btn-full" style="padding:15px;font-size:15px;margin-bottom:10px" onclick="go('prode')">
-      Gol Cargar mi prode
+      Cargar mi prode
     </button>
     <button class="btn-full" style="padding:14px;font-size:14px;margin-bottom:10px" onclick="go('ranking')">
        Tabla de posiciones
@@ -993,7 +993,7 @@ function showDetail(part, res){
 // --- ADMIN ---------------------------------------------------
 function viewAdmin(){
   if(!S.admin.auth) return viewAdminLogin();
-  const tabs=[['partic',' Participantes'],['config','cfg Etapas'],['resultados','Gol Resultados']];
+  const tabs=[['partic','Participantes'],['config','Etapas'],['resultados','Resultados']];
   return `
 <div class="page">
   <div class="row" style="margin-bottom:12px">
