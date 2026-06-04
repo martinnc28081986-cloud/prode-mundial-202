@@ -195,7 +195,7 @@ function calcScore(pred, res, cfg){
     const rMes=rG[m.kResMes];
     const pMes=pG[m.kMes];
     const gepOk=rGEP&&pGEP&&rGEP===pGEP;
-    if(gepOk) s+=3;
+    if(gepOk) s+=5;
     // Marcador exacto (GEP correcto + goles ARG exactos)
     if(gepOk && rArg!==undefined&&rArg!==null&&rArg!=='' && pArg!==undefined&&pArg!==null&&pArg!=='' && parseInt(pArg)===parseInt(rArg)) s+=1;
     // Goles ARG exactos (independiente del GEP)
@@ -241,7 +241,13 @@ function calcScore(pred, res, cfg){
     const rr=resKO[id]; if(!rr?.w) return;
     const pr=predKO[id]; if(!pr?.w) return;
     const ronda=id.startsWith('r16')?'r16':id.startsWith('r8')?'r8':id.startsWith('r4')?'r4':id.startsWith('r2')?'r2':id.startsWith('r3p')?'r3p':'final';
-    if(pr.w===rr.w) s+=rondaPts[ronda]||2;
+    if(pr.w===rr.w){
+      let pts=rondaPts[ronda]||2;
+      // Si Argentina juega en este cruce, acertar el ganador vale +2 extra (total 5 base)
+      const isArgCruce=(rr.h==='Argentina'||rr.a==='Argentina');
+      if(isArgCruce) pts+=2;
+      s+=pts;
+    }
   });
 
   return s;
@@ -265,7 +271,7 @@ function calcScoreDetail(pred, res){
     const gepLabel={'G':'Victoria ARG','E':'Empate','P':'Derrota ARG'};
     const gepOk=rGEP&&pGEP&&rGEP===pGEP;
     if(rGEP){
-      if(gepOk) items.push({cat:'ARG Grupos', desc:'F'+m.ronda+' vs '+m.rival+' - resultado '+gepLabel[rGEP], pts:3, ok:true});
+      if(gepOk) items.push({cat:'ARG Grupos', desc:'F'+m.ronda+' vs '+m.rival+' - resultado '+gepLabel[rGEP], pts:5, ok:true});
       else if(pGEP) items.push({cat:'ARG Grupos', desc:'F'+m.ronda+' vs '+m.rival+' - predijo '+gepLabel[pGEP]+', fue '+gepLabel[rGEP], pts:0, ok:false});
     }
     if(rArg!==undefined&&rArg!==null&&rArg!==''){
@@ -339,8 +345,11 @@ function calcScoreDetail(pred, res){
     const ganReal=rr.w==='h'?rr.h:rr.a;
     const ganPred=pr.w==='h'?(pr.h||rr.h):(pr.a||rr.a);
     const lbl=rondaLabel[ronda]||ronda;
-    if(pr.w===rr.w) items.push({cat:'KO', desc:lbl+': '+ganReal, pts, ok:true});
-    else items.push({cat:'KO', desc:lbl+': predijo '+ganPred+', gano '+ganReal, pts:0, ok:false});
+    if(pr.w===rr.w){
+      const isArgCruce=(rr.h==='Argentina'||rr.a==='Argentina');
+      const finalPts=isArgCruce?pts+2:pts;
+      items.push({cat:'KO', desc:lbl+': '+ganReal+(isArgCruce?' (ARG +2 extra)':''), pts:finalPts, ok:true});
+    } else items.push({cat:'KO', desc:lbl+': predijo '+ganPred+', gano '+ganReal, pts:0, ok:false});
   });
 
   return items;
@@ -523,7 +532,7 @@ function stepGolesGrupos(){
     <span style="font-size:11px;color:#8899cc">${esc(S.user?.name)}</span>
   </div>
   <div style="background:rgba(41,121,255,.08);border:1px solid rgba(41,121,255,.25);border-radius:11px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:#8899cc">
-    Todos los partidos: G/E/P +3 pts &nbsp;|&nbsp; ARG: goles exactos +3 pts c/u &nbsp;|&nbsp; marcador exacto +1 extra
+    Partidos ARG: resultado +5 pts &nbsp;|&nbsp; Otros: resultado +3 pts &nbsp;|&nbsp; Goles ARG exactos +3 &nbsp;|&nbsp; Messi exacto +3 &nbsp;|&nbsp; Marcador exacto +1 extra
   </div>
   ${rows}
   <button class="btn-primary btn-full" style="padding:13px;margin-top:4px" onclick="S.ui.step='confirmGrupos';render()">
