@@ -474,7 +474,10 @@ function stepGolesGrupos(){
   // Armar filas por fecha: partido ARG + partido sin ARG de la misma fecha
   const fechas=['ronda1','ronda2','ronda3'];
   const rows=fechas.map((ronda,fi)=>{
-    const st=cfg.etapas?.grupos?.[ronda]||'pending';
+    const rondaSt=cfg.etapas?.grupos?.[ronda]||'pending';
+    const grupoOpen=cfg.etapas?.grupos?.status==='open'||cfg.etapas?.grupos?.status==='locked';
+    // Fecha habilitada si: la ronda especifica esta abierta, O el grupo general esta abierto y la ronda no fue cerrada
+    const st= rondaSt!=='pending' ? rondaSt : (grupoOpen ? 'open' : 'pending');
     const disabled=st==='pending';
     const mArg=ARG_G[fi];
     const mOth=OTHER_MATCHES[fi];
@@ -1138,7 +1141,9 @@ function subGolesGrupos(cfg,res){
     const mArg=ARG_MATCHES[fi];
     const mOth=OTHER_MATCHES[fi];
     const rondaSt=cfg.etapas?.grupos?.[ronda]||'pending';
-    const disabled=rondaSt==='pending'?'disabled':'';
+    const grupoOpen=cfg.etapas?.grupos?.status==='open'||cfg.etapas?.grupos?.status==='locked';
+    const stEfectivo= rondaSt!=='pending' ? rondaSt : (grupoOpen ? 'open' : 'pending');
+    const disabled=stEfectivo==='pending'?'disabled':'';
     return `
     <div style="font-size:12px;font-weight:700;color:#8899cc;text-transform:uppercase;margin:10px 0 6px">
       Fecha ${fi+1} ${rondaSt==='pending'?'<span style="color:#f87171;font-weight:400">(no abierta)</span>':''}
