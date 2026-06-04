@@ -1127,9 +1127,14 @@ function tabResultados(){
     sub==='cruces'?subCruces(cfg):
     subKO(cfg,res)}
   ${S.admin.msg?`<div class="${S.admin.msg.includes('Error')?'err':'ok'}" style="text-align:center;margin-top:8px">${S.admin.msg}</div>`:''}
-  <button class="btn-primary btn-full" style="margin-top:10px;padding:13px" id="btnSaveRes">
-    ${S.admin.saving?'Guardando...':' Guardar resultados'}
-  </button>
+  <div style="display:flex;gap:8px;margin-top:10px">
+    <button class="btn-primary btn-full" style="padding:13px;flex:1" id="btnSaveRes">
+      ${S.admin.saving?'Guardando...':' Guardar resultados'}
+    </button>
+    <button id="btnResetSub" style="padding:13px;background:rgba(248,113,113,.15);color:#f87171;border:1px solid rgba(248,113,113,.3);border-radius:10px;font-size:13px;white-space:nowrap">
+      Borrar sección
+    </button>
+  </div>
 </div>`;
 }
 
@@ -1425,6 +1430,37 @@ function attachEvents(){
   // Guardar resultados
   const btnSaveRes=document.getElementById('btnSaveRes');
   if(btnSaveRes) btnSaveRes.onclick=saveResults;
+
+  // Borrar seccion de resultados
+  const btnReset=document.getElementById('btnResetSub');
+  if(btnReset) btnReset.onclick=()=>{
+    const sub=S.admin.subTab||'goles_g';
+    const labels={goles_g:'Goles ARG/Messi (grupos)',grupos:'Clasificados',ko:'Resultados KO',cruces:'Cruces KO'};
+    if(!confirm('Borrar todos los datos de "'+labels[sub]+'"? Esta accion no se puede deshacer.')) return;
+    if(sub==='goles_g'){
+      if(!S.results.goles) S.results.goles={};
+      [...ARG_MATCHES.flatMap(m=>[m.kArg,m.kMes,m.kResArg,m.kResMes,m.kGEP,m.kResGEP]),
+       ...OTHER_MATCHES.flatMap(m=>[m.kGEP,m.kResGEP])
+      ].forEach(k=>{ S.results.goles[k]=null; });
+    } else if(sub==='grupos'){
+      S.results.grupos={};
+      S.results.terceros=[];
+    } else if(sub==='ko'){
+      S.results.ko={};
+      if(S.results.goles){
+        Object.keys(S.results.goles).forEach(k=>{
+          if(k.endsWith('_arg')||k.endsWith('_mes')) S.results.goles[k]=null;
+        });
+      }
+    } else if(sub==='cruces'){
+      if(!S.config.etapas) S.config.etapas={};
+      ['r16','r8','r4','r2','final'].forEach(e=>{
+        if(S.config.etapas[e]) S.config.etapas[e].cruces=[];
+      });
+      saveConfig();
+    }
+    render();
+  };
 
   // Refresh ranking
   const btnRef=document.getElementById('btnRefreshRank');
