@@ -104,6 +104,13 @@ const ARG_MATCHES=[
   {id:'arg_g3', ronda:3, rival:'Jordania', kArg:'arg_g3', kMes:'mes_g3', kResArg:'res_arg_g3', kResMes:'res_mes_g3', kGEP:'gep_g3', kResGEP:'resgep_g3'},
 ];
 
+// Partidos del Grupo J sin Argentina (solo G/E/P, sin goles)
+const OTHER_MATCHES=[
+  {id:'oth_g1', ronda:1, local:'Austria',  visit:'Argelia',  kGEP:'gep_oth_g1', kResGEP:'resgep_oth_g1', label:'Fecha 1'},
+  {id:'oth_g2', ronda:2, local:'Jordania', visit:'Argelia',  kGEP:'gep_oth_g2', kResGEP:'resgep_oth_g2', label:'Fecha 2'},
+  {id:'oth_g3', ronda:3, local:'Jordania', visit:'Austria',  kGEP:'gep_oth_g3', kResGEP:'resgep_oth_g3', label:'Fecha 3'},
+];
+
 // ETAPAS
 const ETAPAS=[
   {id:'grupos',  label:'Fase de Grupos', desc:'1ro, 2do y 3ro de cada grupo + 8 terceros que pasan'},
@@ -197,7 +204,14 @@ function calcScore(pred, res, cfg){
     if(rMes!==undefined&&rMes!==null&&rMes!=='' && pMes!==undefined&&pMes!==null&&pMes!=='' && parseInt(pMes)===parseInt(rMes)) s+=3;
   });
 
-  // 2. Grupos: 1ro=3pts, 2do=2pts (se elimina 3ro)
+  // 2. Partidos del Grupo J sin Argentina: G/E/P exacto = +3 pts
+  OTHER_MATCHES.forEach(m=>{
+    const rGEP=rG[m.kResGEP];
+    const pGEP=pG[m.kGEP];
+    if(rGEP&&pGEP&&rGEP===pGEP) s+=3;
+  });
+
+  // 3. Grupos: 1ro=3pts, 2do=2pts (se elimina 3ro)
   GROUPS.forEach(g=>{
     const pp=pred.grupos?.[g]?.pos||[];
     const rp=res.grupos?.[g]?.pos||[];
@@ -210,7 +224,7 @@ function calcScore(pred, res, cfg){
   (pred.grupos?.terceros||[]).forEach(t=>{ if(t&&rT.includes(t)) s+=2; });
 
   // 4. Goles ARG y Messi en KO: solo exacto = 3pts
-  const grupoKeys=new Set(ARG_MATCHES.flatMap(m=>[m.kArg,m.kMes,m.kResArg,m.kResMes,m.kGEP,m.kResGEP]));
+  const grupoKeys=new Set([...ARG_MATCHES.flatMap(m=>[m.kArg,m.kMes,m.kResArg,m.kResMes,m.kGEP,m.kResGEP]),...OTHER_MATCHES.flatMap(m=>[m.kGEP,m.kResGEP])]);
   Object.keys(rG).forEach(k=>{
     if(!k.endsWith('_arg')&&!k.endsWith('_mes')) return;
     if(grupoKeys.has(k)) return;
@@ -267,6 +281,17 @@ function calcScoreDetail(pred, res){
     }
   });
 
+  // Partidos del Grupo J sin Argentina
+  OTHER_MATCHES.forEach(m=>{
+    const rGEP=rG[m.kResGEP];
+    const pGEP=pG[m.kGEP];
+    const gepLabel={'G':m.local+' gana','E':'Empate','P':m.visit+' gana'};
+    if(rGEP){
+      if(pGEP&&rGEP===pGEP) items.push({cat:'ARG Grupos', desc:m.local+' vs '+m.visit+': '+gepLabel[rGEP], pts:3, ok:true});
+      else if(pGEP) items.push({cat:'ARG Grupos', desc:m.local+' vs '+m.visit+': predijo '+gepLabel[pGEP]+', fue '+gepLabel[rGEP], pts:0, ok:false});
+    }
+  });
+
   // Grupos: 1ro=3pts, 2do=2pts
   GROUPS.forEach(g=>{
     const pp=pred.grupos?.[g]?.pos||[];
@@ -287,7 +312,7 @@ function calcScoreDetail(pred, res){
   });
 
   // Goles ARG y Messi en KO: solo exacto = 3pts
-  const grupoKeys=new Set(ARG_MATCHES.flatMap(m=>[m.kArg,m.kMes,m.kResArg,m.kResMes,m.kGEP,m.kResGEP]));
+  const grupoKeys=new Set([...ARG_MATCHES.flatMap(m=>[m.kArg,m.kMes,m.kResArg,m.kResMes,m.kGEP,m.kResGEP]),...OTHER_MATCHES.flatMap(m=>[m.kGEP,m.kResGEP])]);
   const rondaLabel={r16:'16avos', r8:'Octavos', r4:'Cuartos', r2:'Semis', r3p:'3er puesto', final:'Final'};
   Object.keys(rG).forEach(k=>{
     if(!k.endsWith('_arg')&&!k.endsWith('_mes')) return;
@@ -432,58 +457,58 @@ function stepGolesGrupos(){
   if(!pred.goles) pred.goles={};
 
   const ARG_G=[
-    {ronda:'ronda1', rival:'Argelia',  kArg:'arg_g1', kMes:'mes_g1', label:'Fecha 1'},
-    {ronda:'ronda2', rival:'Austria',  kArg:'arg_g2', kMes:'mes_g2', label:'Fecha 2'},
-    {ronda:'ronda3', rival:'Jordania', kArg:'arg_g3', kMes:'mes_g3', label:'Fecha 3'},
+    {ronda:'ronda1', rival:'Argelia',  kArg:'arg_g1', kMes:'mes_g1', kGEP:'gep_g1', label:'Fecha 1'},
+    {ronda:'ronda2', rival:'Austria',  kArg:'arg_g2', kMes:'mes_g2', kGEP:'gep_g2', label:'Fecha 2'},
+    {ronda:'ronda3', rival:'Jordania', kArg:'arg_g3', kMes:'mes_g3', kGEP:'gep_g3', label:'Fecha 3'},
   ];
 
-  const fechasHabilitadas=ARG_G.filter(m=>{
-    const st=cfg.etapas?.grupos?.[m.ronda]||'pending';
-    return st!=='pending';
-  });
-
-  const rows=ARG_G.map(m=>{
-    const st=cfg.etapas?.grupos?.[m.ronda]||'pending';
+  // Armar filas por fecha: partido ARG + partido sin ARG de la misma fecha
+  const fechas=['ronda1','ronda2','ronda3'];
+  const rows=fechas.map((ronda,fi)=>{
+    const st=cfg.etapas?.grupos?.[ronda]||'pending';
     const disabled=st==='pending';
-    const gepVal=pred.goles?.[m.kGEP]||'';
+    const mArg=ARG_G[fi];
+    const mOth=OTHER_MATCHES[fi];
+    const gepArg=pred.goles?.[mArg.kGEP]||'';
+    const gepOth=pred.goles?.[mOth.kGEP]||'';
     return `
-    <div class="panel" style="margin-bottom:10px;${disabled?'opacity:.45':''}">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-        <div style="font-size:13px;font-weight:600;color:#2979ff">${m.label} - Argentina vs ${m.rival}</div>
-        ${disabled?'<span style="font-size:10px;color:#8899cc;background:#1e2d5e;padding:3px 8px;border-radius:6px">No disponible aun</span>':''}
-      </div>
-      <div style="margin-bottom:12px">
-        <div class="lbl">Resultado del partido (+3 pts)</div>
-        <div style="display:flex;gap:6px;margin-top:6px">
-          <button class="ko-btn${gepVal==='G'?' on':''}" ${disabled?'disabled':''} data-gol="${m.kGEP}" data-gep="G"
-            style="flex:1;padding:10px 4px;font-size:13px;font-weight:700">
-            Argentina gana
-          </button>
-          <button class="ko-btn${gepVal==='E'?' on':''}" ${disabled?'disabled':''} data-gol="${m.kGEP}" data-gep="E"
-            style="flex:1;padding:10px 4px;font-size:13px;font-weight:700">
-            Empate
-          </button>
-          <button class="ko-btn${gepVal==='P'?' on':''}" ${disabled?'disabled':''} data-gol="${m.kGEP}" data-gep="P"
-            style="flex:1;padding:10px 4px;font-size:13px;font-weight:700">
-            ${m.rival} gana
-          </button>
+    <div style="margin-bottom:6px;font-size:12px;font-weight:700;color:#8899cc;text-transform:uppercase;letter-spacing:.5px">${mArg.label}${disabled?' <span style="color:#f87171;font-weight:400">(no disponible aun)</span>':''}</div>
+
+    <div class="panel" style="margin-bottom:6px;${disabled?'opacity:.45':''}">
+      <div style="font-size:13px;font-weight:600;color:#2979ff;margin-bottom:8px"> Argentina vs ${mArg.rival}</div>
+      <div style="margin-bottom:10px">
+        <div class="lbl">Resultado (+3 pts)</div>
+        <div style="display:flex;gap:5px;margin-top:5px">
+          <button class="ko-btn${gepArg==='G'?' on':''}" ${disabled?'disabled':''} data-gol="${mArg.kGEP}" data-gep="G" style="flex:1;padding:8px 2px;font-size:12px;font-weight:700">ARG gana</button>
+          <button class="ko-btn${gepArg==='E'?' on':''}" ${disabled?'disabled':''} data-gol="${mArg.kGEP}" data-gep="E" style="flex:1;padding:8px 2px;font-size:12px;font-weight:700">Empate</button>
+          <button class="ko-btn${gepArg==='P'?' on':''}" ${disabled?'disabled':''} data-gol="${mArg.kGEP}" data-gep="P" style="flex:1;padding:8px 2px;font-size:12px;font-weight:700">${mArg.rival} gana</button>
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div>
-          <div class="lbl">Goles Argentina (+3 pts exacto)</div>
+          <div class="lbl">Goles Argentina (+3 exacto)</div>
           <input type="number" min="0" max="20" placeholder="--" ${disabled?'disabled':''}
-            data-gol="${m.kArg}" value="${pred.goles?.[m.kArg]??''}"
-            style="text-align:center;font-size:24px;font-weight:700;padding:10px">
+            data-gol="${mArg.kArg}" value="${pred.goles?.[mArg.kArg]??''}"
+            style="text-align:center;font-size:22px;font-weight:700;padding:8px">
         </div>
         <div>
-          <div class="lbl">Goles Messi (+3 pts exacto)</div>
+          <div class="lbl">Goles Messi (+3 exacto)</div>
           <input type="number" min="0" max="10" placeholder="--" ${disabled?'disabled':''}
-            data-gol="${m.kMes}" value="${pred.goles?.[m.kMes]??''}"
-            style="text-align:center;font-size:24px;font-weight:700;padding:10px">
+            data-gol="${mArg.kMes}" value="${pred.goles?.[mArg.kMes]??''}"
+            style="text-align:center;font-size:22px;font-weight:700;padding:8px">
         </div>
       </div>
-      ${gepVal?'<div style="font-size:11px;color:#8899cc;margin-top:8px">Marcador exacto (GEP correcto + goles ARG exactos) = +1 pt extra</div>':''}
+      ${gepArg?'<div style="font-size:11px;color:#8899cc;margin-top:6px">Marcador exacto = +1 pt extra</div>':''}
+    </div>
+
+    <div class="panel" style="margin-bottom:14px;${disabled?'opacity:.45':''}">
+      <div style="font-size:13px;font-weight:600;color:#8899cc;margin-bottom:8px">${mOth.local} vs ${mOth.visit}</div>
+      <div class="lbl">Resultado (+3 pts)</div>
+      <div style="display:flex;gap:5px;margin-top:5px">
+        <button class="ko-btn${gepOth==='G'?' on':''}" ${disabled?'disabled':''} data-gol="${mOth.kGEP}" data-gep="G" style="flex:1;padding:8px 2px;font-size:12px;font-weight:700">${mOth.local} gana</button>
+        <button class="ko-btn${gepOth==='E'?' on':''}" ${disabled?'disabled':''} data-gol="${mOth.kGEP}" data-gep="E" style="flex:1;padding:8px 2px;font-size:12px;font-weight:700">Empate</button>
+        <button class="ko-btn${gepOth==='P'?' on':''}" ${disabled?'disabled':''} data-gol="${mOth.kGEP}" data-gep="P" style="flex:1;padding:8px 2px;font-size:12px;font-weight:700">${mOth.visit} gana</button>
+      </div>
     </div>`;
   }).join('');
 
@@ -492,13 +517,13 @@ function stepGolesGrupos(){
   <div class="row" style="margin-bottom:10px">
     <button class="back" style="padding:0;margin:0" onclick="S.ui.step=null;S.ui.gi=11;render()"><-</button>
     <div style="flex:1">
-      <div style="font-size:15px;font-weight:700">Goles Argentina & Messi</div>
+      <div style="font-size:15px;font-weight:700">Partidos Grupo J</div>
       <div style="font-size:11px;color:#8899cc">Fase de Grupos</div>
     </div>
     <span style="font-size:11px;color:#8899cc">${esc(S.user?.name)}</span>
   </div>
   <div style="background:rgba(41,121,255,.08);border:1px solid rgba(41,121,255,.25);border-radius:11px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:#8899cc">
-    Resultado G/E/P: +3 pts &nbsp;|&nbsp; Marcador exacto: +1 extra &nbsp;|&nbsp; Goles exactos: +3 pts c/u
+    Todos los partidos: G/E/P +3 pts &nbsp;|&nbsp; ARG: goles exactos +3 pts c/u &nbsp;|&nbsp; marcador exacto +1 extra
   </div>
   ${rows}
   <button class="btn-primary btn-full" style="padding:13px;margin-top:4px" onclick="S.ui.step='confirmGrupos';render()">
@@ -1096,53 +1121,54 @@ function tabResultados(){
 }
 
 function subGolesGrupos(cfg,res){
+  const fechas=['ronda1','ronda2','ronda3'];
   return `
 <div>
-  ${ARG_MATCHES.map(m=>{
-    const rondaSt=cfg.etapas?.grupos?.[m.id==='arg_g1'?'ronda1':m.id==='arg_g2'?'ronda2':'ronda3']||'pending';
+  ${fechas.map((ronda,fi)=>{
+    const mArg=ARG_MATCHES[fi];
+    const mOth=OTHER_MATCHES[fi];
+    const rondaSt=cfg.etapas?.grupos?.[ronda]||'pending';
     const disabled=rondaSt==='pending'?'disabled':'';
     return `
-    <div class="panel" style="margin-bottom:10px;${rondaSt==='pending'?'opacity:.5':''}">
-      <div style="font-size:13px;font-weight:600;color:#2979ff;margin-bottom:10px">
-        Fecha ${m.ronda} -- Argentina vs ${m.rival}
-        ${rondaSt==='pending'?'<span style="font-size:10px;color:#8899cc"> (fecha no abierta)</span>':''}
-      </div>
-      <div style="margin-bottom:10px">
-        <div class="lbl">Resultado real del partido</div>
-        <div style="display:flex;gap:6px;margin-top:6px">
-          ${['G','E','P'].map(v=>`<button class="ko-btn${res.goles?.[m.kResGEP]===v?' on':''}"
-            ${disabled} data-res="goles.${m.kResGEP}" data-gepval="${v}"
-            style="flex:1;padding:8px 4px;font-size:12px;font-weight:700"
-            onclick="">${v==='G'?'ARG gana':v==='E'?'Empate':m.rival+' gana'}</button>`).join('')}
+    <div style="font-size:12px;font-weight:700;color:#8899cc;text-transform:uppercase;margin:10px 0 6px">
+      Fecha ${fi+1} ${rondaSt==='pending'?'<span style="color:#f87171;font-weight:400">(no abierta)</span>':''}
+    </div>
+
+    <div class="panel" style="margin-bottom:6px;${rondaSt==='pending'?'opacity:.5':''}">
+      <div style="font-size:13px;font-weight:600;color:#2979ff;margin-bottom:8px"> Argentina vs ${mArg.rival}</div>
+      <div style="margin-bottom:8px">
+        <div class="lbl">Resultado real</div>
+        <div style="display:flex;gap:5px;margin-top:5px">
+          ${['G','E','P'].map(v=>`<button class="ko-btn${res.goles?.[mArg.kResGEP]===v?' on':''}"
+            ${disabled} data-res="goles.${mArg.kResGEP}" data-gepval="${v}"
+            style="flex:1;padding:7px 2px;font-size:12px;font-weight:700"
+            onclick="">${v==='G'?'ARG gana':v==='E'?'Empate':mArg.rival+' gana'}</button>`).join('')}
         </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
         <div>
           <div class="lbl">Goles Argentina (real)</div>
           <input type="number" min="0" max="20" placeholder="--" ${disabled}
-            data-res="goles.${m.kResArg}" value="${res.goles?.[m.kResArg]??''}"
-            style="text-align:center;font-size:22px;font-weight:700;padding:10px">
+            data-res="goles.${mArg.kResArg}" value="${res.goles?.[mArg.kResArg]??''}"
+            style="text-align:center;font-size:20px;font-weight:700;padding:8px">
         </div>
         <div>
           <div class="lbl">Goles Messi (real)</div>
           <input type="number" min="0" max="10" placeholder="--" ${disabled}
-            data-res="goles.${m.kResMes}" value="${res.goles?.[m.kResMes]??''}"
-            style="text-align:center;font-size:22px;font-weight:700;padding:10px">
+            data-res="goles.${mArg.kResMes}" value="${res.goles?.[mArg.kResMes]??''}"
+            style="text-align:center;font-size:20px;font-weight:700;padding:8px">
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid #1e2d5e">
-        <div>
-          <div class="lbl">Goles ARG (pred. usuarios)</div>
-          <input type="number" min="0" max="20" placeholder="--" ${disabled}
-            data-res="goles.${m.kArg}" value="${res.goles?.[m.kArg]??''}"
-            style="text-align:center;font-size:18px;font-weight:700;padding:8px;opacity:.7">
-        </div>
-        <div>
-          <div class="lbl">Goles Messi (pred. usuarios)</div>
-          <input type="number" min="0" max="10" placeholder="--" ${disabled}
-            data-res="goles.${m.kMes}" value="${res.goles?.[m.kMes]??''}"
-            style="text-align:center;font-size:18px;font-weight:700;padding:8px;opacity:.7">
-        </div>
+    </div>
+
+    <div class="panel" style="margin-bottom:14px;${rondaSt==='pending'?'opacity:.5':''}">
+      <div style="font-size:13px;font-weight:600;color:#8899cc;margin-bottom:8px">${mOth.local} vs ${mOth.visit}</div>
+      <div class="lbl">Resultado real</div>
+      <div style="display:flex;gap:5px;margin-top:5px">
+        ${['G','E','P'].map(v=>`<button class="ko-btn${res.goles?.[mOth.kResGEP]===v?' on':''}"
+          ${disabled} data-res="goles.${mOth.kResGEP}" data-gepval="${v}"
+          style="flex:1;padding:7px 2px;font-size:12px;font-weight:700"
+          onclick="">${v==='G'?mOth.local+' gana':v==='E'?'Empate':mOth.visit+' gana'}</button>`).join('')}
       </div>
     </div>`;
   }).join('')}
